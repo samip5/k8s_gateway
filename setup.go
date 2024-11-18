@@ -105,19 +105,19 @@ func parse(c *caddy.Controller) (*Gateway, error) {
 					gw.configContext = args[1]
 				}
 
-			case "ingressClass":
+			case "ingressClasses":
 				args := c.RemainingArgs()
 				if len(args) == 0 {
 					return nil, c.Errf("Incorrectly formated 'ingressClass' parameter")
 				}
-				gw.IngressClass = args[0]
+				gw.IngressClasses = args
 
-			case "gatewayClass":
+			case "gatewayClasses":
 				args := c.RemainingArgs()
 				if len(args) == 0 {
 					return nil, c.Errf("Incorrectly formated 'gatewayClass' parameter")
 				}
-				gw.GatewayClass = args[0]
+				gw.GatewayClasses = args
 
 			default:
 				return nil, c.Errf("Unknown property '%s'", c.Val())

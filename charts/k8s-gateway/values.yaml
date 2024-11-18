@@ -19,6 +19,10 @@ resources: {}
 # Limit what kind of resources to watch, e.g. watchedResources: ["Ingress"]
 watchedResources: []
 
+filters:
+  ingressClasses: []
+  gatewayClasses: []
+
 # Service name of a secondary DNS server (should be `serviceName.namespace`)
 secondary: ""
 

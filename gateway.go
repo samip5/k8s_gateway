@@ -67,19 +67,19 @@ type Gateway struct {
 	configFile       string
 	configContext    string
 	ExternalAddrFunc func(request.Request) []dns.RR
-	IngressClass     string
-	GatewayClass     string
+	IngressClasses   []string
+	GatewayClasses   []string
 
 	Fall fall.F
 }
 
 type ResourceFilters struct {
-	IngressClass string
-	GatewayClass string
+	IngressClasses []string
+	GatewayClasses []string
 }
 
 func (gw *Gateway) resourceFilters() ResourceFilters {
-	return ResourceFilters{gw.IngressClass, gw.GatewayClass}
+	return ResourceFilters{gw.IngressClasses, gw.GatewayClasses}
 }
 
 func newGateway() *Gateway {
