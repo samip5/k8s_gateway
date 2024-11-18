@@ -45,7 +45,7 @@ type KubeController struct {
 	hasSynced   bool
 }
 
-func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gatewayClient.Clientset) *KubeController {
+func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gatewayClient.Clientset, filters ResourceFilters) *KubeController {
 	log.Infof("Building k8s_gateway controller")
 
 	ctrl := &KubeController{
@@ -75,7 +75,7 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 				defaultResyncPeriod,
 				cache.Indexers{httpRouteHostnameIndex: httpRouteHostnameIndexFunc},
 			)
-			resource.lookup = lookupHttpRouteIndex(httpRouteController, gatewayController)
+			resource.lookup = lookupHttpRouteIndex(httpRouteController, gatewayController, filters.GatewayClass)
 			ctrl.controllers = append(ctrl.controllers, httpRouteController)
 		}
 
@@ -89,7 +89,7 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 				defaultResyncPeriod,
 				cache.Indexers{tlsRouteHostnameIndex: tlsRouteHostnameIndexFunc},
 			)
-			resource.lookup = lookupTLSRouteIndex(tlsRouteController, gatewayController)
+			resource.lookup = lookupTLSRouteIndex(tlsRouteController, gatewayController, filters.GatewayClass)
 			ctrl.controllers = append(ctrl.controllers, tlsRouteController)
 		}
 
@@ -103,7 +103,7 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 				defaultResyncPeriod,
 				cache.Indexers{grpcRouteHostnameIndex: grpcRouteHostnameIndexFunc},
 			)
-			resource.lookup = lookupGRPCRouteIndex(grpcRouteController, gatewayController)
+			resource.lookup = lookupGRPCRouteIndex(grpcRouteController, gatewayController, filters.GatewayClass)
 			ctrl.controllers = append(ctrl.controllers, grpcRouteController)
 		}
 	}
@@ -118,7 +118,7 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 			defaultResyncPeriod,
 			cache.Indexers{ingressHostnameIndex: ingressHostnameIndexFunc},
 		)
-		resource.lookup = lookupIngressIndex(ingressController)
+		resource.lookup = lookupIngressIndex(ingressController, filters.IngressClass)
 		ctrl.controllers = append(ctrl.controllers, ingressController)
 	}
 
@@ -183,11 +183,10 @@ func (gw *Gateway) RunKubeController(ctx context.Context) error {
 		return err
 	}
 
-	gw.Controller = newKubeController(ctx, kubeClient, gwAPIClient)
+	gw.Controller = newKubeController(ctx, kubeClient, gwAPIClient, gw.resourceFilters)
 	go gw.Controller.run()
 
 	return nil
-
 }
 
 func existGatewayCRDs(ctx context.Context, c *gatewayClient.Clientset) bool {
@@ -428,7 +427,7 @@ func lookupServiceIndex(ctrl cache.SharedIndexInformer) func([]string) []netip.A
 	}
 }
 
-func lookupHttpRouteIndex(http, gw cache.SharedIndexInformer) func([]string) []netip.Addr {
+func lookupHttpRouteIndex(http, gw cache.SharedIndexInformer, gwclass string) func([]string) []netip.Addr {
 	return func(indexKeys []string) (result []netip.Addr) {
 		var objs []interface{}
 		for _, key := range indexKeys {
@@ -439,13 +438,13 @@ func lookupHttpRouteIndex(http, gw cache.SharedIndexInformer) func([]string) []n
 
 		for _, obj := range objs {
 			httpRoute, _ := obj.(*gatewayapi_v1.HTTPRoute)
-			result = append(result, lookupGateways(gw, httpRoute.Spec.ParentRefs, httpRoute.Namespace)...)
+			result = append(result, lookupGateways(gw, httpRoute.Spec.ParentRefs, httpRoute.Namespace, gwclass)...)
 		}
 		return
 	}
 }
 
-func lookupTLSRouteIndex(tls, gw cache.SharedIndexInformer) func([]string) []netip.Addr {
+func lookupTLSRouteIndex(tls, gw cache.SharedIndexInformer, gwclass string) func([]string) []netip.Addr {
 	return func(indexKeys []string) (result []netip.Addr) {
 		var objs []interface{}
 		for _, key := range indexKeys {
@@ -456,13 +455,13 @@ func lookupTLSRouteIndex(tls, gw cache.SharedIndexInformer) func([]string) []net
 
 		for _, obj := range objs {
 			tlsRoute, _ := obj.(*gatewayapi_v1alpha2.TLSRoute)
-			result = append(result, lookupGateways(gw, tlsRoute.Spec.ParentRefs, tlsRoute.Namespace)...)
+			result = append(result, lookupGateways(gw, tlsRoute.Spec.ParentRefs, tlsRoute.Namespace, gwclass)...)
 		}
 		return
 	}
 }
 
-func lookupGRPCRouteIndex(grpc, gw cache.SharedIndexInformer) func([]string) []netip.Addr {
+func lookupGRPCRouteIndex(grpc, gw cache.SharedIndexInformer, gwclass string) func([]string) []netip.Addr {
 	return func(indexKeys []string) (result []netip.Addr) {
 		var objs []interface{}
 		for _, key := range indexKeys {
@@ -473,13 +472,13 @@ func lookupGRPCRouteIndex(grpc, gw cache.SharedIndexInformer) func([]string) []n
 
 		for _, obj := range objs {
 			grpcRoute, _ := obj.(*gatewayapi_v1.GRPCRoute)
-			result = append(result, lookupGateways(gw, grpcRoute.Spec.ParentRefs, grpcRoute.Namespace)...)
+			result = append(result, lookupGateways(gw, grpcRoute.Spec.ParentRefs, grpcRoute.Namespace, gwclass)...)
 		}
 		return
 	}
 }
 
-func lookupGateways(gw cache.SharedIndexInformer, refs []gatewayapi_v1.ParentReference, ns string) (result []netip.Addr) {
+func lookupGateways(gw cache.SharedIndexInformer, refs []gatewayapi_v1.ParentReference, ns string, gwclass string) (result []netip.Addr) {
 	for _, gwRef := range refs {
 
 		if gwRef.Namespace != nil {
@@ -492,13 +491,19 @@ func lookupGateways(gw cache.SharedIndexInformer, refs []gatewayapi_v1.ParentRef
 
 		for _, gwObj := range gwObjs {
 			gw, _ := gwObj.(*gatewayapi_v1.Gateway)
+
+			if gwclass != "" && string(gw.Spec.GatewayClassName) != gwclass {
+				log.Debugf("Skipping gateway of '%s' gatewayClass", string(gw.Spec.GatewayClassName))
+				continue
+			}
+
 			result = append(result, fetchGatewayIPs(gw)...)
 		}
 	}
 	return
 }
 
-func lookupIngressIndex(ctrl cache.SharedIndexInformer) func([]string) []netip.Addr {
+func lookupIngressIndex(ctrl cache.SharedIndexInformer, ingclass string) func([]string) []netip.Addr {
 	return func(indexKeys []string) (result []netip.Addr) {
 		var objs []interface{}
 		for _, key := range indexKeys {
@@ -508,6 +513,11 @@ func lookupIngressIndex(ctrl cache.SharedIndexInformer) func([]string) []netip.A
 		log.Debugf("Found %d matching Ingress objects", len(objs))
 		for _, obj := range objs {
 			ingress, _ := obj.(*networking.Ingress)
+
+			if ingclass != "" && *ingress.Spec.IngressClassName != ingclass {
+				log.Debugf("Skipping ingress of '%s' ingressClass", *ingress.Spec.IngressClassName)
+				continue
+			}
 
 			result = append(result, fetchIngressLoadBalancerIPs(ingress.Status.LoadBalancer.Ingress)...)
 		}
@@ -597,8 +607,10 @@ func fetchIngressLoadBalancerIPs(ingresses []networking.IngressLoadBalancerIngre
 }
 
 // the below is borrowed from k/k's GitHub repo
-const dns1123ValueFmt string = "[a-z0-9]([-a-z0-9]*[a-z0-9])?"
-const dns1123SubdomainFmt string = dns1123ValueFmt + "(\\." + dns1123ValueFmt + ")*"
+const (
+	dns1123ValueFmt     string = "[a-z0-9]([-a-z0-9]*[a-z0-9])?"
+	dns1123SubdomainFmt string = dns1123ValueFmt + "(\\." + dns1123ValueFmt + ")*"
+)
 
 var dns1123SubdomainRegexp = regexp.MustCompile("^" + dns1123SubdomainFmt + "$")
 
