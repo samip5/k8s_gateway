@@ -74,7 +74,7 @@ func parse(c *caddy.Controller) (*Gateway, error) {
 				gw.updateResources(args)
 
 				if len(args) == 0 {
-					return nil, c.Errf("Incorrectly formated 'resource' parameter")
+					return nil, c.Errf("Incorrectly formatted 'resource' parameter")
 				}
 			case "ttl":
 				args := c.RemainingArgs()
@@ -108,16 +108,16 @@ func parse(c *caddy.Controller) (*Gateway, error) {
 			case "ingressClasses":
 				args := c.RemainingArgs()
 				if len(args) == 0 {
-					return nil, c.Errf("Incorrectly formated 'ingressClass' parameter")
+					return nil, c.Errf("Incorrectly formatted 'ingressClass' parameter")
 				}
-				gw.IngressClasses = args
+				gw.resourceFilters.ingressClasses = args
 
 			case "gatewayClasses":
 				args := c.RemainingArgs()
 				if len(args) == 0 {
-					return nil, c.Errf("Incorrectly formated 'gatewayClass' parameter")
+					return nil, c.Errf("Incorrectly formatted 'gatewayClass' parameter")
 				}
-				gw.GatewayClasses = args
+				gw.resourceFilters.gatewayClasses = args
 
 			default:
 				return nil, c.Errf("Unknown property '%s'", c.Val())
