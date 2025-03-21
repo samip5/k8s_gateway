@@ -28,5 +28,7 @@ jobs:
           password: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Build and Push container images
+        env:
+          REGISTRY: ghcr.io/samip5
         run: |
           make docker
