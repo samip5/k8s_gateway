@@ -24,10 +24,10 @@ jobs:
           go-version: 1.23.x
       -
         name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: release --rm-dist
+          args: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   docker-release:
@@ -57,5 +57,7 @@ jobs:
           password: "${{ secrets.GITHUB_TOKEN }}"
       - 
         name: Build and Push container images
+        env:
+          REGISTRY: ghcr.io/samip5
         run: |
           make release
