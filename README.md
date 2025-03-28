@@ -14,7 +14,7 @@ This plugin relies on its own connection to the k8s API server and doesn't share
 | TLSRoute<sup>[1](#foot1) | all FQDNs from `spec.hostnames` matching configured zones | `gateway.status.addresses`<sup>[2](#foot2)</sup> |
 | GRPCRoute<sup>[1](#foot1) | all FQDNs from `spec.hostnames` matching configured zones | `gateway.status.addresses`<sup>[2](#foot2)</sup> |
 | Ingress | all FQDNs from `spec.rules[*].host` matching configured zones | `.status.loadBalancer.ingress` |
-| Service<sup>[3](#foot3)</sup> | `name.namespace` + any of the configured zones OR any string consisting of lower case alphanumeric characters, '-' or '.', specified in the `coredns.io/hostname` or `external-dns.alpha.kubernetes.io/hostname` annotations (see [this](https://github.com/ori-edge/k8s_gateway/blob/master/test/single-stack/service-annotation.yml#L8) for an example) | `.status.loadBalancer.ingress` |
+| Service<sup>[3](#foot3)</sup> | `name.namespace` + any of the configured zones OR any string consisting of lower case alphanumeric characters, '-' or '.', specified in the `coredns.io/hostname` or `external-dns.alpha.kubernetes.io/hostname` annotations (see [this](https://github.com/k8s-gateway/k8s_gateway/blob/master/test/single-stack/service-annotation.yml#L8) for an example) | `.status.loadBalancer.ingress` |
 | VirtualServer<sup>[4](#foot4)</sup> | `spec.host` | `.status.externalEnpoints.ip` |
 
 
@@ -129,7 +129,7 @@ zone.example.com (NS record) -> exdns-2-k8s-gateway.zone.example.com (A record) 
 $ git clone https://github.com/coredns/coredns
 $ cd coredns
 $ vim plugin.cfg
-# Replace lines with kubernetes and k8s_external with k8s_gateway:github.com/ori-edge/k8s_gateway
+# Replace lines with kubernetes and k8s_external with k8s_gateway:github.com/k8s-gateway/k8s_gateway
 $ go generate
 $ go build
 $ ./coredns -plugins | grep k8s_gateway
@@ -137,7 +137,7 @@ $ ./coredns -plugins | grep k8s_gateway
 
 ### With external golang source code
 ```
-$ git clone https://github.com/ori-edge/k8s_gateway.git
+$ git clone https://github.com/k8s-gateway/k8s_gateway.git
 $ cd k8s_gateway
 $ go build cmd/coredns.go
 $ ./coredns -plugins | grep k8s_external
