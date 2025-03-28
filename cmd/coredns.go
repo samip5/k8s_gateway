@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	_ "github.com/coredns/coredns/core/plugin"
-	_ "github.com/ori-edge/k8s_gateway"
+	_ "github.com/k8s-gateway/k8s_gateway"
 
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
