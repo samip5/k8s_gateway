@@ -11,8 +11,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - 
-        name: Checkout code
+      - name: Checkout code
         uses: actions/checkout@v2
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -28,7 +27,5 @@ jobs:
           password: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Build and Push container images
-        env:
-          REGISTRY: ghcr.io/samip5
         run: |
           make docker
