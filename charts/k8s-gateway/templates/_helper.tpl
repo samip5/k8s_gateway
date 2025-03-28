@@ -85,3 +85,96 @@ Create the matchable regex from domain
     {{ "unset" }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+  k8s-gateway.dnsEndpoint:
+  Returns "true" if "DNSEndpoint" is in .Values.watchedResources,
+  or if watchedResources is not set. Otherwise returns "false".
+*/}}
+{{- define "k8s-gateway.dnsEndpoint" -}}
+  {{- if .Values.watchedResources -}}
+    {{- $found := false -}}
+    {{- range .Values.watchedResources -}}
+      {{- if eq . "DNSEndpoint" -}}
+        {{- $found = true -}}
+      {{- end -}}
+    {{- end -}}
+    {{- if $found -}}
+true
+    {{- else -}}
+false
+    {{- end -}}
+  {{- else -}}
+false
+  {{- end -}}
+{{- end }}
+
+{{/*
+  k8s-gateway.gatewayAPIs:
+  Returns "true" if any one of the Gateway API resources 
+  (HTTPRoute, TLSRoute, GRPCRoute, UDPRoute) is in .Values.watchedResources,
+  or if watchedResources is not set; returns "false" otherwise.
+*/}}
+{{- define "k8s-gateway.gatewayAPI" -}}
+  {{- if .Values.watchedResources -}}
+    {{- $found := false -}}
+    {{- range .Values.watchedResources -}}
+      {{- if or (eq . "HTTPRoute") (eq . "TLSRoute") (eq . "GRPCRoute") (eq . "UDPRoute") -}}
+        {{- $found = true -}}
+      {{- end -}}
+    {{- end -}}
+    {{- if $found -}}
+true
+    {{- else -}}
+false
+    {{- end -}}
+  {{- else -}}
+false
+  {{- end -}}
+{{- end }}
+
+{{/*
+  k8s-gateway.ingress:
+  Returns "true" if "Ingress" is in .Values.watchedResources,
+  or if watchedResources is not set. Otherwise returns "false".
+*/}}
+{{- define "k8s-gateway.ingress" -}}
+  {{- if .Values.watchedResources -}}
+    {{- $found := false -}}
+    {{- range .Values.watchedResources -}}
+      {{- if eq . "Ingress" -}}
+        {{- $found = true -}}
+      {{- end -}}
+    {{- end -}}
+    {{- if $found -}}
+true
+    {{- else -}}
+false
+    {{- end -}}
+  {{- else -}}
+false
+  {{- end -}}
+{{- end }}
+
+{{/*
+  k8s-gateway.Service:
+  Returns "true" if "DNSEndpoint" is in .Values.watchedResources,
+  or if watchedResources is not set. Otherwise returns "false".
+*/}}
+{{- define "k8s-gateway.service" -}}
+  {{- if .Values.watchedResources -}}
+    {{- $found := false -}}
+    {{- range .Values.watchedResources -}}
+      {{- if eq . "Service" -}}
+        {{- $found = true -}}
+      {{- end -}}
+    {{- end -}}
+    {{- if $found -}}
+true
+    {{- else -}}
+false
+    {{- end -}}
+  {{- else -}}
+false
+  {{- end -}}
+{{- end }}

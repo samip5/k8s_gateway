@@ -1,3 +1,6 @@
+{{- if empty .Values.watchedResources }}
+  {{- fail "watchedResources must be defined and non-empty" }}
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -17,6 +20,7 @@ rules:
     - get
     - list
     - watch
+  {{- if eq (include "k8s-gateway.service" .) "true" }}
 - apiGroups:
   - ""
   resources:
@@ -25,6 +29,8 @@ rules:
   verbs:
   - list
   - watch
+  {{- end }}
+  {{- if eq (include "k8s-gateway.ingress" .) "true" }}
 - apiGroups:
   - extensions
   - networking.k8s.io
@@ -33,12 +39,17 @@ rules:
   verbs:
   - list
   - watch
-- apiGroups: ["gateway.networking.k8s.io"]
-  resources: ["*"]
-  verbs: ["watch", "list"]
-- apiGroups: ["k8s.nginx.org"]
-  resources: ["*"]
-  verbs: ["watch", "list"]
+  {{- end }}
+  {{- if eq (include "k8s-gateway.gatewayAPI" .) "true" }}
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - "*"
+  verbs:
+  - "watch"
+  - "list"
+  {{- end }}
+  {{- if eq (include "k8s-gateway.dnsEndpoint" .) "true" }}
 - apiGroups:
   - externaldns.k8s.io
   resources:
@@ -53,6 +64,7 @@ resources:
   - dnsendpoints/status
 verbs:
   - "*"
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
