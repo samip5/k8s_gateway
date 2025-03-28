@@ -46,7 +46,6 @@ const (
 var (
 	apiextensionsClient  *apiextensionsclientset.Clientset
 	externaldnsCRDClient *rest.RESTClient
-	externaldnsScheme    *runtime.Scheme
 )
 
 // KubeController stores the current runtime configuration and cache
@@ -216,7 +215,7 @@ func (gw *Gateway) RunKubeController(ctx context.Context) error {
 		return err
 	}
 
-	externaldnsCRDClient, externaldnsScheme, err = source.NewCRDClientForAPIVersionKind(kubeClient, gw.configFile, "", externalDNSEndpointGroup, externalDNSEndpointKind)
+	externaldnsCRDClient, _, err = source.NewCRDClientForAPIVersionKind(kubeClient, gw.configFile, "", externalDNSEndpointGroup, externalDNSEndpointKind)
 	if err != nil {
 		log.Warningf("crd %s not found. ignoring and continuing execution", externalDNSEndpointGroup)
 	}
