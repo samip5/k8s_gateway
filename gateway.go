@@ -43,6 +43,10 @@ var orderedResources = []*resourceWithIndex{
 		name:   "Service",
 		lookup: noop,
 	},
+	{
+		name:   "DNSEndpoint",
+		lookup: noop,
+	},
 }
 
 var (
