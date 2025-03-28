@@ -26,7 +26,7 @@ type Fallen struct {
 }
 
 func TestLookup(t *testing.T) {
-	real := []string{"Ingress", "Service", "HTTPRoute", "TLSRoute", "GRPCRoute", "VirtualServer"}
+	real := []string{"Ingress", "Service", "HTTPRoute", "TLSRoute", "GRPCRoute"}
 	fake := []string{"Pod", "Gateway"}
 
 	for _, resource := range real {
@@ -183,20 +183,6 @@ var tests = []test.Case{
 			test.A("svc1.ns1.example.com.	60	IN	A	192.0.1.1"),
 		},
 	},
-	// Existing VirtualServer | Test 11
-	{
-		Qname: "vs1.example.com", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
-		Answer: []dns.RR{
-			test.A("vs1.example.com.	60	IN	A	192.0.3.1"),
-		},
-	},
-	// VirtualServer lookup priority over Ingress | Test 12
-	{
-		Qname: "shadow-vs.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
-		Answer: []dns.RR{
-			test.A("shadow-vs.example.com.	60	IN	A	192.0.3.5"),
-		},
-	},
 	// basic gateway API lookup | Test 13
 	{
 		Qname: "domain.gw.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
@@ -204,7 +190,7 @@ var tests = []test.Case{
 			test.A("domain.gw.example.com.	60	IN	A	192.0.2.1"),
 		},
 	},
-	// gateway API lookup priority over Ingress and VirtualServers | Test 14
+	// gateway API lookup priority over Ingress | Test 14
 	{
 		Qname: "shadow.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
 		Answer: []dns.RR{
@@ -294,19 +280,6 @@ func testIngressLookup(keys []string) (results []netip.Addr) {
 	return results
 }
 
-var testVirtualServerIndexes = map[string][]netip.Addr{
-	"vs1.example.com":       {netip.MustParseAddr("192.0.3.1")},
-	"shadow.example.com":    {netip.MustParseAddr("192.0.3.4")},
-	"shadow-vs.example.com": {netip.MustParseAddr("192.0.3.5")},
-}
-
-func testVirtualServerLookup(keys []string) (results []netip.Addr) {
-	for _, key := range keys {
-		results = append(results, testVirtualServerIndexes[strings.ToLower(key)]...)
-	}
-	return results
-}
-
 var testRouteIndexes = map[string][]netip.Addr{
 	"domain.gw.example.com": {netip.MustParseAddr("192.0.2.1")},
 	"shadow.example.com":    {netip.MustParseAddr("192.0.2.4")},
@@ -325,9 +298,6 @@ func setupLookupFuncs() {
 	}
 	if resource := lookupResource("Service"); resource != nil {
 		resource.lookup = testServiceLookup
-	}
-	if resource := lookupResource("VirtualServer"); resource != nil {
-		resource.lookup = testVirtualServerLookup
 	}
 	if resource := lookupResource("HTTPRoute"); resource != nil {
 		resource.lookup = testRouteLookup
