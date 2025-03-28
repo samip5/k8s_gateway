@@ -13,7 +13,6 @@ builds:
     goarch:
       - amd64
       - arm64
-      - mips64
     ignore:
       - goos: freebsd
         goarch: arm64
