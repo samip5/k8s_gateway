@@ -23,7 +23,7 @@ docker_build_with_restart(IMG, '.',
 
 # Cilium CNI
 helm_remote('cilium',
-            version="1.15.0-pre.1",
+            version="1.17.2",
             namespace="kube-system",
             repo_name='cilium',
             values=['./test/cilium/helm-values.yaml'],
@@ -42,24 +42,11 @@ k8s_yaml(helm(
 
 # Baremetal ingress controller (nodeport-based)
 helm_remote('ingress-nginx',
-            version="4.8.3",
+            version="4.12.1",
             repo_name='ingress-nginx',
             set=['controller.admissionWebhooks.enabled=false'],
             repo_url='https://kubernetes.github.io/ingress-nginx')
 
-# Nginxinc kubernetes-ingress
-helm_remote('nginx-ingress',
-            version="1.0.1",
-            release_name="nginxinc",
-            repo_name='oci://ghcr.io/nginxinc/charts',
-            values=['./test/nginxinc-kubernetes-ingress/values.yaml']
-            )
-
-helm_remote('istiod',
-            version="1.19.3",
-            repo_name='istio',
-            set=['global.istioNamespace=default', 'base.enableIstioConfigCRDs=false', 'telemetry.enabled=false'],
-            repo_url='https://istio-release.storage.googleapis.com/charts')
 helm_remote('gateway',
             version="1.19.3",
             repo_name='istio',

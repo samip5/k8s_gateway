@@ -18,8 +18,8 @@ import (
 )
 
 func TestController(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	gwClient := gwFake.NewSimpleClientset()
+	client := fake.NewClientset()
+	gwClient := gwFake.NewClientset()
 	ctrl := &KubeController{
 		client:    client,
 		gwClient:  gwClient,
