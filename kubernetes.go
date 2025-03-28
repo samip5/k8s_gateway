@@ -601,7 +601,7 @@ func lookupDNSEndpoint(ctrl cache.SharedIndexInformer) func([]string) (results [
 
 			for _, endpoint := range dnsEndpoint.Spec.Endpoints {
 				for _, target := range endpoint.Targets {
-					if endpoint.RecordType == "A" {
+					if endpoint.RecordType == "A" || endpoint.RecordType == "AAAA" {
 						addr, err := netip.ParseAddr(target)
 						if err != nil {
 							continue
