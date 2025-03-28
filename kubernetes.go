@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/miekg/dns"
-	nginx_v1 "github.com/nginxinc/kubernetes-ingress/pkg/apis/configuration/v1"
-	k8s_nginx "github.com/nginxinc/kubernetes-ingress/pkg/client/clientset/versioned"
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,7 +33,6 @@ const (
 	httpRouteHostnameIndex           = "httpRouteHostname"
 	tlsRouteHostnameIndex            = "tlsRouteHostname"
 	grpcRouteHostnameIndex           = "grpcRouteHostname"
-	virtualServerHostnameIndex       = "virtualServerHostname"
 	hostnameAnnotationKey            = "coredns.io/hostname"
 	externalDnsHostnameAnnotationKey = "external-dns.alpha.kubernetes.io/hostname"
 )
@@ -43,19 +40,17 @@ const (
 // KubeController stores the current runtime configuration and cache
 type KubeController struct {
 	client      kubernetes.Interface
-	nginxClient k8s_nginx.Interface
 	gwClient    gatewayClient.Interface
 	controllers []cache.SharedIndexInformer
 	hasSynced   bool
 }
 
-func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gatewayClient.Clientset, nc *k8s_nginx.Clientset) *KubeController {
+func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gatewayClient.Clientset) *KubeController {
 	log.Infof("Building k8s_gateway controller")
 
 	ctrl := &KubeController{
-		client:      c,
-		nginxClient: nc,
-		gwClient:    gw,
+		client:   c,
+		gwClient: gw,
 	}
 
 	if existGatewayCRDs(ctx, gw) {
@@ -110,22 +105,6 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 			)
 			resource.lookup = lookupGRPCRouteIndex(grpcRouteController, gatewayController)
 			ctrl.controllers = append(ctrl.controllers, grpcRouteController)
-		}
-	}
-
-	if existVirtualServerCRDs(ctx, nc) {
-		if resource := lookupResource("VirtualServer"); resource != nil {
-			virtualServerController := cache.NewSharedIndexInformer(
-				&cache.ListWatch{
-					ListFunc:  virtualServerLister(ctx, ctrl.nginxClient, core.NamespaceAll),
-					WatchFunc: virtualServerWatcher(ctx, ctrl.nginxClient, core.NamespaceAll),
-				},
-				&nginx_v1.VirtualServer{},
-				defaultResyncPeriod,
-				cache.Indexers{virtualServerHostnameIndex: virtualServerHostnameIndexFunc},
-			)
-			resource.lookup = lookupVirtualServerIndex(virtualServerController)
-			ctrl.controllers = append(ctrl.controllers, virtualServerController)
 		}
 	}
 
@@ -199,17 +178,12 @@ func (gw *Gateway) RunKubeController(ctx context.Context) error {
 		return err
 	}
 
-	nginxClient, err := k8s_nginx.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
-
 	gwAPIClient, err := gatewayClient.NewForConfig(config)
 	if err != nil {
 		return err
 	}
 
-	gw.Controller = newKubeController(ctx, kubeClient, gwAPIClient, nginxClient)
+	gw.Controller = newKubeController(ctx, kubeClient, gwAPIClient)
 	go gw.Controller.run()
 
 	return nil
@@ -219,11 +193,6 @@ func (gw *Gateway) RunKubeController(ctx context.Context) error {
 func existGatewayCRDs(ctx context.Context, c *gatewayClient.Clientset) bool {
 	_, err := c.GatewayV1().Gateways("").List(ctx, metav1.ListOptions{})
 	return handleCRDCheckError(err, "GatewayAPI", "gateway.networking.k8s.io")
-}
-
-func existVirtualServerCRDs(ctx context.Context, c *k8s_nginx.Clientset) bool {
-	_, err := c.K8sV1().VirtualServers("").List(ctx, metav1.ListOptions{})
-	return handleCRDCheckError(err, "VirtualServer", "k8s.nginx.org/v1")
 }
 
 func handleCRDCheckError(err error, resourceName string, apiGroup string) bool {
@@ -293,12 +262,6 @@ func serviceLister(ctx context.Context, c kubernetes.Interface, ns string) func(
 	}
 }
 
-func virtualServerLister(ctx context.Context, c k8s_nginx.Interface, ns string) func(metav1.ListOptions) (runtime.Object, error) {
-	return func(opts metav1.ListOptions) (runtime.Object, error) {
-		return c.K8sV1().VirtualServers(ns).List(ctx, opts)
-	}
-}
-
 func httpRouteWatcher(ctx context.Context, c gatewayClient.Interface, ns string) func(metav1.ListOptions) (watch.Interface, error) {
 	return func(opts metav1.ListOptions) (watch.Interface, error) {
 		return c.GatewayV1().HTTPRoutes(ns).Watch(ctx, opts)
@@ -332,12 +295,6 @@ func ingressWatcher(ctx context.Context, c kubernetes.Interface, ns string) func
 func serviceWatcher(ctx context.Context, c kubernetes.Interface, ns string) func(metav1.ListOptions) (watch.Interface, error) {
 	return func(opts metav1.ListOptions) (watch.Interface, error) {
 		return c.CoreV1().Services(ns).Watch(ctx, opts)
-	}
-}
-
-func virtualServerWatcher(ctx context.Context, c k8s_nginx.Interface, ns string) func(metav1.ListOptions) (watch.Interface, error) {
-	return func(opts metav1.ListOptions) (watch.Interface, error) {
-		return c.K8sV1().VirtualServers(ns).Watch(ctx, opts)
 	}
 }
 
@@ -446,17 +403,6 @@ func checkServiceAnnotation(annotation string, service *core.Service) (string, b
 	return "", false
 }
 
-func virtualServerHostnameIndexFunc(obj interface{}) ([]string, error) {
-	virtualServer, ok := obj.(*nginx_v1.VirtualServer)
-	if !ok {
-		return []string{}, nil
-	}
-
-	log.Debugf("Adding index %s for VirtualServer %s", virtualServer.Spec.Host, virtualServer.Name)
-
-	return []string{virtualServer.Spec.Host}, nil
-}
-
 func lookupServiceIndex(ctrl cache.SharedIndexInformer) func([]string) []netip.Addr {
 	return func(indexKeys []string) (result []netip.Addr) {
 		var objs []interface{}
@@ -477,29 +423,6 @@ func lookupServiceIndex(ctrl cache.SharedIndexInformer) func([]string) []netip.A
 			}
 
 			result = append(result, fetchServiceLoadBalancerIPs(service.Status.LoadBalancer.Ingress)...)
-		}
-		return
-	}
-}
-
-func lookupVirtualServerIndex(ctrl cache.SharedIndexInformer) func([]string) []netip.Addr {
-	return func(indexKeys []string) (result []netip.Addr) {
-		var objs []interface{}
-		for _, key := range indexKeys {
-			obj, _ := ctrl.GetIndexer().ByIndex(virtualServerHostnameIndex, strings.ToLower(key))
-			objs = append(objs, obj...)
-		}
-		log.Debugf("Found %d matching VirtualServer objects", len(objs))
-		for _, obj := range objs {
-			virtualServer, _ := obj.(*nginx_v1.VirtualServer)
-
-			for _, endpoint := range virtualServer.Status.ExternalEndpoints {
-				addr, err := netip.ParseAddr(endpoint.IP)
-				if err != nil {
-					continue
-				}
-				result = append(result, addr)
-			}
 		}
 		return
 	}

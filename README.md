@@ -15,13 +15,11 @@ This plugin relies on its own connection to the k8s API server and doesn't share
 | GRPCRoute<sup>[1](#foot1) | all FQDNs from `spec.hostnames` matching configured zones | `gateway.status.addresses`<sup>[2](#foot2)</sup> |
 | Ingress | all FQDNs from `spec.rules[*].host` matching configured zones | `.status.loadBalancer.ingress` |
 | Service<sup>[3](#foot3)</sup> | `name.namespace` + any of the configured zones OR any string consisting of lower case alphanumeric characters, '-' or '.', specified in the `coredns.io/hostname` or `external-dns.alpha.kubernetes.io/hostname` annotations (see [this](https://github.com/k8s-gateway/k8s_gateway/blob/master/test/single-stack/service-annotation.yml#L8) for an example) | `.status.loadBalancer.ingress` |
-| VirtualServer<sup>[4](#foot4)</sup> | `spec.host` | `.status.externalEnpoints.ip` |
 
 
 <a name="f1">1</a>: Currently supported version of GatewayAPI CRDs is v1.0.0+ experimental channel.</br>
 <a name="f2">2</a>: Gateway is a separate resource specified in the `spec.parentRefs` of HTTPRoute|TLSRoute|GRPCRoute.</br>
 <a name="f3">3</a>: Only resolves service of type LoadBalancer</br>
-<a name="f4">4</a>: Currently supported version of [nginxinc kubernetes-ingress](https://github.com/nginxinc/kubernetes-ingress) is 1.12.3</br>
 
 Currently only supports A-type queries, all other queries result in NODATA responses.
 
@@ -65,7 +63,7 @@ k8s_gateway ZONE
 ```
 
 
-* `resources` a subset of supported Kubernetes resources to watch. By default all supported resources are monitored. Available options are `[ Ingress | Service | HTTPRoute | TLSRoute | GRPCRoute | VirtualServer ]`.
+* `resources` a subset of supported Kubernetes resources to watch. By default all supported resources are monitored. Available options are `[ Ingress | Service | HTTPRoute | TLSRoute | GRPCRoute ]`.
 * `ttl` can be used to override the default TTL value of 60 seconds.
 * `apex` can be used to override the default apex record value of `{ReleaseName}-k8s-gateway.{Namespace}`
 * `secondary` can be used to specify the optional apex record value of a peer nameserver running in the cluster (see `Dual Nameserver Deployment` section below).
@@ -186,9 +184,6 @@ kubectl apply -f ./test/single-stack/ingress-services.yml
 
 # gateway API resources
 kubectl apply -f ./test/gateway-api/resources.yml
-
-# nginxinc's VirtualService  resources
-kubectl apply -f test/nginxinc-kubernetes-ingress/resources.yaml
 ```
 
 Test queries can be sent to the exposed CoreDNS service like this:
@@ -214,14 +209,6 @@ $ dig @$ip -p 32553 myserviceb.gw.foo.org +short
 $ dig @$ip -p 32553 myserviced.gw.foo.org +short
 198.51.100.5
 198.51.100.4
-
-# nginxinc's Ingress
-$ dig @$ip -p 32553 myserviceb.foo.org +short
-198.51.100.2
-
-# nginxinc's VirtualServer
-$ dig @$ip -p 32553 virtualservera.foo.org +short
-198.51.100.2
 ```
 
 To cleanup local environment do:

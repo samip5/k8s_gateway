@@ -54,7 +54,6 @@ helm_remote('nginx-ingress',
             repo_name='oci://ghcr.io/nginxinc/charts',
             values=['./test/nginxinc-kubernetes-ingress/values.yaml']
             )
-k8s_kind('VirtualServer', api_version='k8s.nginx.org/v1')
 
 helm_remote('istiod',
             version="1.19.3",

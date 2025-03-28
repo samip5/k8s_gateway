@@ -6,9 +6,6 @@ import (
 
 	"github.com/coredns/coredns/plugin/test"
 	"github.com/miekg/dns"
-	nginx "github.com/nginxinc/kubernetes-ingress/pkg/apis/configuration/v1"
-	k8s_nginx "github.com/nginxinc/kubernetes-ingress/pkg/client/clientset/versioned"
-	k8s_nginx_fake "github.com/nginxinc/kubernetes-ingress/pkg/client/clientset/versioned/fake"
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,12 +20,10 @@ import (
 func TestController(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	gwClient := gwFake.NewSimpleClientset()
-	nginxClient := k8s_nginx_fake.NewSimpleClientset()
 	ctrl := &KubeController{
-		client:      client,
-		gwClient:    gwClient,
-		nginxClient: nginxClient,
-		hasSynced:   true,
+		client:    client,
+		gwClient:  gwClient,
+		hasSynced: true,
 	}
 	addServices(client)
 	addIngresses(client)
@@ -36,7 +31,6 @@ func TestController(t *testing.T) {
 	addHTTPRoutes(gwClient)
 	addTLSRoutes(gwClient)
 	addGRPCRoutes(gwClient)
-	addVirtualServers(nginxClient)
 
 	gw := newGateway()
 	gw.Zones = []string{"example.com."}
@@ -62,13 +56,6 @@ func TestController(t *testing.T) {
 		ips := fetchServiceLoadBalancerIPs(testObj.Status.LoadBalancer.Ingress)
 		if len(ips) != 1 {
 			t.Errorf("Unexpected number of IPs found %d", len(ips))
-		}
-	}
-
-	for index, testObj := range testVirtualServers {
-		found, _ := virtualServerHostnameIndexFunc(testObj)
-		if !isFound(index, found) {
-			t.Errorf("VirtualServer ksy %s not found in index: %v", index, found)
 		}
 	}
 
@@ -133,16 +120,6 @@ func addIngresses(client kubernetes.Interface) {
 		_, err := client.NetworkingV1().Ingresses("ns1").Create(ctx, ingress, meta.CreateOptions{})
 		if err != nil {
 			log.Warningf("Failed to Create Ingress Objects :%s", err)
-		}
-	}
-}
-
-func addVirtualServers(client k8s_nginx.Interface) {
-	ctx := context.TODO()
-	for _, virtualServer := range testVirtualServers {
-		_, err := client.K8sV1().VirtualServers("ns1").Create(ctx, virtualServer, meta.CreateOptions{})
-		if err != nil {
-			log.Warningf("Failed to Create VirtualServer Objects :%s", err)
 		}
 	}
 }
@@ -282,23 +259,6 @@ var testServices = map[string]*core.Service{
 				Ingress: []core.LoadBalancerIngress{
 					{IP: "192.0.0.3"},
 				},
-			},
-		},
-	},
-}
-
-var testVirtualServers = map[string]*nginx.VirtualServer{
-	"vs1.example.org": {
-		ObjectMeta: meta.ObjectMeta{
-			Name:      "vs1",
-			Namespace: "ns1",
-		},
-		Spec: nginx.VirtualServerSpec{
-			Host: "vs1.example.org",
-		},
-		Status: nginx.VirtualServerStatus{
-			ExternalEndpoints: []nginx.ExternalEndpoint{
-				{IP: "192.0.0.1"},
 			},
 		},
 	},
