@@ -26,7 +26,7 @@ type Fallen struct {
 }
 
 func TestLookup(t *testing.T) {
-	real := []string{"Ingress", "Service", "HTTPRoute", "TLSRoute", "GRPCRoute"}
+	real := []string{"Ingress", "Service", "HTTPRoute", "TLSRoute", "GRPCRoute", "DNSEndpoint"}
 	fake := []string{"Pod", "Gateway"}
 
 	for _, resource := range real {
@@ -292,6 +292,18 @@ func testRouteLookup(keys []string) (results []netip.Addr) {
 	return results
 }
 
+var testDNSEndpointIndexes = map[string][]netip.Addr{
+	"domain.endpoint.example.com": {netip.MustParseAddr("192.0.4.1")},
+	"endpoint.example.com":        {netip.MustParseAddr("192.0.4.4")},
+}
+
+func testDNSEndpointLookup(keys []string) (results []netip.Addr) {
+	for _, key := range keys {
+		results = append(results, testDNSEndpointIndexes[strings.ToLower(key)]...)
+	}
+	return results
+}
+
 func setupLookupFuncs() {
 	if resource := lookupResource("Ingress"); resource != nil {
 		resource.lookup = testIngressLookup
@@ -307,5 +319,8 @@ func setupLookupFuncs() {
 	}
 	if resource := lookupResource("GRPCRoute"); resource != nil {
 		resource.lookup = testRouteLookup
+	}
+	if resource := lookupResource("DNSEndpoint"); resource != nil {
+		resource.lookup = testDNSEndpointLookup
 	}
 }
