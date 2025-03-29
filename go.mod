@@ -9,7 +9,7 @@ require (
 	github.com/coredns/coredns v1.12.0
 	github.com/miekg/dns v1.1.64
 	k8s.io/api v0.32.3
-	k8s.io/apiextensions-apiserver v0.31.1
+	k8s.io/apiextensions-apiserver v0.32.3
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.3
 	sigs.k8s.io/external-dns v0.16.1
@@ -145,7 +145,7 @@ require (
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/mock v0.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.26.0 // indirect
+	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/mod v0.24.0 // indirect
