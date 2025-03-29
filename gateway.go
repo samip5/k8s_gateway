@@ -20,6 +20,16 @@ type resourceWithIndex struct {
 	lookup lookupFunc
 }
 
+// Static resources with their default noop function
+var staticResources = []*resourceWithIndex{
+	{name: "HTTPRoute", lookup: noop},
+	{name: "TLSRoute", lookup: noop},
+	{name: "GRPCRoute", lookup: noop},
+	{name: "Ingress", lookup: noop},
+	{name: "Service", lookup: noop},
+	{name: "DNSEndpoint", lookup: noop},
+}
+
 var noop lookupFunc = func([]string) (result []netip.Addr) { return }
 
 var orderedResources = []*resourceWithIndex{
@@ -59,19 +69,20 @@ var (
 
 // Gateway stores all runtime configuration of a plugin
 type Gateway struct {
-	Next             plugin.Handler
-	Zones            []string
-	Resources        []*resourceWithIndex
-	ttlLow           uint32
-	ttlSOA           uint32
-	Controller       *KubeController
-	apex             string
-	hostmaster       string
-	secondNS         string
-	configFile       string
-	configContext    string
-	ExternalAddrFunc func(request.Request) []dns.RR
-	resourceFilters  ResourceFilters
+	Next                plugin.Handler
+	Zones               []string
+	Resources           []*resourceWithIndex
+	ConfiguredResources []*string
+	ttlLow              uint32
+	ttlSOA              uint32
+	Controller          *KubeController
+	apex                string
+	hostmaster          string
+	secondNS            string
+	configFile          string
+	configContext       string
+	ExternalAddrFunc    func(request.Request) []dns.RR
+	resourceFilters     ResourceFilters
 
 	Fall fall.F
 }
@@ -81,19 +92,20 @@ type ResourceFilters struct {
 	gatewayClasses []string
 }
 
+// Create a new Gateway instance
 func newGateway() *Gateway {
 	return &Gateway{
-		Resources:  orderedResources,
-		ttlLow:     ttlDefault,
-		ttlSOA:     ttlSOA,
-		apex:       defaultApex,
-		secondNS:   defaultSecondNS,
-		hostmaster: defaultHostmaster,
+		Resources:           make([]*resourceWithIndex, 0),
+		ConfiguredResources: make([]*string, 0),
+		ttlLow:              ttlDefault,
+		ttlSOA:              ttlSOA,
+		apex:                defaultApex,
+		secondNS:            defaultSecondNS,
+		hostmaster:          defaultHostmaster,
 	}
 }
 
 func lookupResource(resource string) *resourceWithIndex {
-
 	for _, r := range orderedResources {
 		if r.name == resource {
 			return r
@@ -102,14 +114,36 @@ func lookupResource(resource string) *resourceWithIndex {
 	return nil
 }
 
+// Update resources in the Gateway based on provided configuration
 func (gw *Gateway) updateResources(newResources []string) {
+	log.Infof("Updating resources with: %v", newResources)
+	gw.Resources = nil // Clear existing resources
 
-	gw.Resources = []*resourceWithIndex{}
+	// Create a map to hold enabled resources
+	resourceLookup := make(map[string]*resourceWithIndex)
 
+	// Fill the resource lookup map from static resources
+	for _, resource := range staticResources {
+		resourceLookup[resource.name] = resource
+	}
+
+	// Populate gw.Resources based on newResources
 	for _, name := range newResources {
-		if resource := lookupResource(name); resource != nil {
+		if resource, exists := resourceLookup[name]; exists {
+			log.Infof("Adding resource: %s", resource.name)
 			gw.Resources = append(gw.Resources, resource)
+		} else {
+			log.Warningf("Resource not found in static resources: %s", name)
 		}
+	}
+
+	log.Infof("Final resources: %v", gw.Resources)
+}
+
+func (gw *Gateway) SetConfiguredResources(newResources []string) {
+	gw.ConfiguredResources = make([]*string, len(newResources))
+	for i, resource := range newResources {
+		gw.ConfiguredResources[i] = &resource
 	}
 }
 
