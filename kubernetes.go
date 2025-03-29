@@ -45,7 +45,7 @@ const (
 
 var (
 	apiextensionsClient  *apiextensionsclientset.Clientset
-	externaldnsCRDClient *rest.RESTClient
+	externaldnsCRDClient rest.Interface
 )
 
 // KubeController stores the current runtime configuration and cache
