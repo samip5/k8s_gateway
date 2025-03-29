@@ -17,13 +17,16 @@ on:
         required: true
 
 env:
-  HELM_VERSION: 3.10.2
+  HELM_VERSION: 3.17.2
 
 jobs:
   release-charts:
     name: Release charts
     #runs-on: ["self-hosted", "X64"]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
       - name: Workaround
         run: export OPENSSL_CONF=/dev/null
@@ -49,6 +52,13 @@ jobs:
           ref: "gh-pages"
           fetch-depth: 0
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install Kubernetes tools
         uses: yokawasa/action-setup-kube-tools@v0.11.2
         with:
@@ -61,14 +71,18 @@ jobs:
         env:
           SRC_DIR: "src/charts"
           DEST_DIR: "dest"
+          REGISTRY: oci://ghcr.io/${{ github.repository_owner }}/charts
         run: |
           CHARTS=( $(yq --null-input e '${{ inputs.charts }}[]' ) )
 
           for CHART in "${CHARTS[@]}" ; do
             mapfile -t CHART_PATH_PARTS < <(echo "$CHART" | tr '/' '\n')
 
+            export VERSION=$(yq .version "${SRC_DIR}/${CHART}/Chart.yaml")
+
             helm dep up "${SRC_DIR}/${CHART}"
             helm package "${SRC_DIR}/${CHART}" -u -d "${DEST_DIR}"
+            helm push "${DEST_DIR}/${CHART}-${VERSION}.tgz" "${REGISTRY}"
           done
 
       - name: Update chart index
