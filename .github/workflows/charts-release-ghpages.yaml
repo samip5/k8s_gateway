@@ -75,7 +75,7 @@ jobs:
         shell: bash
         working-directory: dest
         run: |
-          helm repo index . --url https://helm.samipsolutions.fi/
+          helm repo index . --url https://k8s-gateway.github.io/k8s_gateway/
 
       - name: Commit changes
         shell: bash

@@ -32,14 +32,14 @@ This plugin is **NOT** supposed to be used for intra-cluster DNS resolution and 
 The recommended installation method is using the helm chart provided in the repo:
 
 ```
-helm repo add k8s_gateway https://ori-edge.github.io/k8s_gateway/
+helm repo add k8s_gateway https://k8s-gateway.github.io/k8s_gateway/
 helm install exdns --set domain=foo k8s_gateway/k8s-gateway
 ```
 
 Alternatively, for labbing and testing purposes `k8s_gateway` can be deployed with a single manifest:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/ori-edge/k8s_gateway/master/examples/install-clusterwide.yml
+kubectl apply -f https://raw.githubusercontent.com/k8s-gateway/k8s_gateway/master/examples/install-clusterwide.yml
 ```
 
 ## Configure
@@ -150,13 +150,6 @@ For more details refer to [this CoreDNS doc](https://coredns.io/2017/07/25/compi
 
 
 ## Release
-
-### Helm Charts 
-
-If the change was made only to helm charts, only two things are required:
-
-* Bump the chart version in `./charts/k8s-gateway/Chart.yaml`
-* Run `make helm-update`
 
 ### Plugin
 
@@ -287,9 +280,4 @@ cgroupsV2: false
 2. `colima start` with above configuration
 3. `tilt up -f Tiltfile.nerdctl` + space bar for the environment to trigger.
 
-The stacks should deploy and you'll have a proper stack that builds `k8s-gateway` with `coredns` and deploys to `kube-system` namespace.
-
-## Also see
-
-[Blogpost](https://medium.com/from-the-edge/a-self-hosted-external-dns-resolver-for-kubernetes-111a27d6fc2c)  
-[Helm repo guide](https://medium.com/@mattiaperi/create-a-public-helm-chart-repository-with-github-pages-49b180dbb417)
+The stacks should deploy, and you'll have a proper stack that builds `k8s-gateway` with `coredns` and deploys to `kube-system` namespace.
