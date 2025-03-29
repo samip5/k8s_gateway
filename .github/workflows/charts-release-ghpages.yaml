@@ -24,9 +24,6 @@ jobs:
     name: Release charts
     #runs-on: ["self-hosted", "X64"]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
     steps:
       - name: Workaround
         run: export OPENSSL_CONF=/dev/null
