@@ -29,7 +29,7 @@ jobs:
         run: export OPENSSL_CONF=/dev/null
       - name: Get GitHub API token
         id: get-app-token
-        uses: getsentry/action-github-app-token@v2.0.0
+        uses: getsentry/action-github-app-token@v3.0.0
         with:
           app_id: ${{ secrets.BOT_APP_ID }}
           private_key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
