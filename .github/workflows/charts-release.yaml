@@ -14,9 +14,9 @@ on:
 
   push:
     branches:
-      - main
+      - master
     paths:
-      - "charts/**"
+      - "charts/*"
 
 env:
   HELM_VERSION: 3.10.2
