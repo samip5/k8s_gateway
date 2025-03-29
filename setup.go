@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-
 	"strconv"
 
 	"github.com/coredns/caddy"
@@ -20,7 +19,6 @@ func init() {
 }
 
 func setup(c *caddy.Controller) error {
-
 	gw, err := parse(c)
 	if err != nil {
 		return plugin.Error(thisPlugin, err)
@@ -74,7 +72,7 @@ func parse(c *caddy.Controller) (*Gateway, error) {
 				gw.updateResources(args)
 
 				if len(args) == 0 {
-					return nil, c.Errf("Incorrectly formated 'resource' parameter")
+					return nil, c.Errf("Incorrectly formatted 'resource' parameter")
 				}
 			case "ttl":
 				args := c.RemainingArgs()
@@ -104,11 +102,25 @@ func parse(c *caddy.Controller) (*Gateway, error) {
 				if len(args) == 2 {
 					gw.configContext = args[1]
 				}
+
+			case "ingressClasses":
+				args := c.RemainingArgs()
+				if len(args) == 0 {
+					return nil, c.Errf("Incorrectly formatted 'ingressClasses' parameter")
+				}
+				gw.resourceFilters.ingressClasses = args
+
+			case "gatewayClasses":
+				args := c.RemainingArgs()
+				if len(args) == 0 {
+					return nil, c.Errf("Incorrectly formatted 'gatewayClasses' parameter")
+				}
+				gw.resourceFilters.gatewayClasses = args
+
 			default:
 				return nil, c.Errf("Unknown property '%s'", c.Val())
 			}
 		}
 	}
 	return gw, nil
-
 }

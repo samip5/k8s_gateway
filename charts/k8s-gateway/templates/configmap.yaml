@@ -29,6 +29,12 @@ data:
           {{- if .Values.watchedResources }}
           resources {{ join " " .Values.watchedResources }}
           {{- end }}
+          {{- if .Values.filters.ingressClasses }}
+          ingressClasses {{ join " " .Values.filters.ingressClasses }}
+          {{- end }}
+          {{- if .Values.filters.gatewayClasses }}
+          gatewayClasses {{ join " " .Values.filters.gatewayClasses }}
+          {{- end }}
           {{- if .Values.fallthrough.enabled }}
           fallthrough {{- range .Values.fallthrough.zones }} {{ . }} {{- end }}
           {{- end }}

@@ -42,18 +42,20 @@ kubectl apply -f https://raw.githubusercontent.com/ori-edge/k8s_gateway/master/e
 
 ## Configure
 
-The only required configuration option is the zone that plugin should be authoritative for:
+The only required configuration option are the zones that plugin should be authoritative for:
 
 ```
-k8s_gateway ZONE 
+k8s_gateway [ZONES...] 
 ```
 
 Additional configuration options can be used to further customize the behaviour of a plugin:
 
 ```
 {
-k8s_gateway ZONE 
+k8s_gateway [ZONES...]
     resources [RESOURCES...]
+    ingressClasses [CLASSES...]
+    gatewayClasses [CLASSES...]
     ttl TTL
     apex APEX
     secondary SECONDARY
@@ -62,8 +64,9 @@ k8s_gateway ZONE
 }
 ```
 
-
 * `resources` a subset of supported Kubernetes resources to watch. By default all supported resources are monitored. Available options are `[ Ingress | Service | HTTPRoute | TLSRoute | GRPCRoute ]`.
+* `ingressClasses` to filter `Ingress` resources by `ingressClassName` values. Watches all by default.
+* `gatewayClasses` to filter `Gateway` resources by `gatewayClassName` values. Watches all by default.
 * `ttl` can be used to override the default TTL value of 60 seconds.
 * `apex` can be used to override the default apex record value of `{ReleaseName}-k8s-gateway.{Namespace}`
 * `secondary` can be used to specify the optional apex record value of a peer nameserver running in the cluster (see `Dual Nameserver Deployment` section below).
