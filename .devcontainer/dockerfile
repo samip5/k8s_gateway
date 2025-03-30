@@ -8,7 +8,7 @@ RUN apk add --update --no-cache git --repository=https://dl-cdn.alpinelinux.org/
 # Create a non-root user
 RUN adduser -D -h /home/vscode -s /bin/bash vscode \
     && echo "vscode ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-    
+
 # Set the user to vscode
 USER vscode
 
