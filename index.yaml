@@ -2,8 +2,21 @@ apiVersion: v1
 entries:
   k8s-gateway:
   - apiVersion: v2
+    appVersion: 1.0.3
+    created: "2025-03-30T16:16:26.962027631Z"
+    description: A Helm chart for the k8s_gateway CoreDNS plugin
+    digest: 35f69a932613049a0c4d56d9c7d2147dff54444ac0eac1a7335b827479e6a403
+    maintainers:
+    - name: samip5
+      url: https://github.com/samip5
+    name: k8s-gateway
+    type: application
+    urls:
+    - https://k8s-gateway.github.io/k8s_gateway/k8s-gateway-3.0.2.tgz
+    version: 3.0.2
+  - apiVersion: v2
     appVersion: 1.0.1
-    created: "2025-03-29T23:01:22.620357874Z"
+    created: "2025-03-30T16:16:26.961609702Z"
     description: A Helm chart for the k8s_gateway CoreDNS plugin
     digest: 3685eb04ffc01e3725d5660b7933a1f222fded3799e3fe7cbe8cba9035ab0955
     maintainers:
@@ -16,7 +29,7 @@ entries:
     version: 3.0.1
   - apiVersion: v2
     appVersion: 1.0.0
-    created: "2025-03-29T23:01:22.619742958Z"
+    created: "2025-03-30T16:16:26.961150105Z"
     description: A Helm chart for the k8s_gateway CoreDNS plugin
     digest: 10020f32490ab07664fff4006cf48ab0bcb1df8ed101bd0c4a802099c9d171db
     maintainers:
@@ -27,4 +40,4 @@ entries:
     urls:
     - https://k8s-gateway.github.io/k8s_gateway/k8s-gateway-3.0.0.tgz
     version: 3.0.0
-generated: "2025-03-29T23:01:22.619186431Z"
+generated: "2025-03-30T16:16:26.960564464Z"
