@@ -54,6 +54,6 @@ spec:
   ipFamilyPolicy: {{ .Values.service.ipFamilyPolicy }}
   {{- end }}
   {{- with .Values.service.ipFamilies }}
-  ipFamilies: 
+  ipFamilies:
   {{- toYaml . | nindent 6 }}
   {{- end -}}

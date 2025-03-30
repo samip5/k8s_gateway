@@ -13,16 +13,16 @@ REGISTRY ?= ghcr.io/k8s-gateway
 IMG ?= $(REGISTRY)/$(BIN)
 
 setup:
-	./test/kind-with-registry.sh 
+	./test/kind-with-registry.sh
 
-up: 
+up:
 	tilt up
 
 down:
 	tilt down
 
-nuke: 
-	./test/teardown-kind-with-registry.sh 
+nuke:
+	./test/teardown-kind-with-registry.sh
 
 ## Build the plugin binary
 build:

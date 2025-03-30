@@ -15,7 +15,7 @@ local_resource('recompile', binary(), deps=['cmd', 'gateway.go', 'kubernetes.go'
 
 docker_build_with_restart(IMG, '.',
     dockerfile='tilt.Dockerfile',
-    entrypoint=['/coredns'], 
+    entrypoint=['/coredns'],
     live_update=[
         sync('./coredns', '/coredns'),
         ]
