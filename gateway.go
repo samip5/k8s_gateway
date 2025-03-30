@@ -103,14 +103,14 @@ func (gw *Gateway) updateResources(newResources []string) {
 	// Populate gw.Resources based on newResources
 	for _, name := range newResources {
 		if resource, exists := resourceLookup[name]; exists {
-			log.Infof("Adding resource: %s", resource.name)
+			log.Debugf("Adding resource: %s", resource.name)
 			gw.Resources = append(gw.Resources, resource)
 		} else {
 			log.Warningf("Resource not found in static resources: %s", name)
 		}
 	}
 
-	log.Infof("Final resources: %v", gw.Resources)
+	log.Debugf("Final resources: %v", gw.Resources)
 }
 
 func (gw *Gateway) SetConfiguredResources(newResources []string) {

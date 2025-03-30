@@ -75,7 +75,7 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 			cache.Indexers{gatewayUniqueIndex: gatewayIndexFunc},
 		)
 		ctrl.controllers = append(ctrl.controllers, gatewayController)
-		log.Infof("Gateway controller initialized")
+		log.Infof("GatewayAPI controller initialized")
 
 		routingResources := []string{"HTTPRoute", "TLSRoute", "GRPCRoute"}
 		for _, resourceName := range routingResources {
