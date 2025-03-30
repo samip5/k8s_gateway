@@ -32,33 +32,6 @@ var staticResources = []*resourceWithIndex{
 
 var noop lookupFunc = func([]string) (result []netip.Addr) { return }
 
-var orderedResources = []*resourceWithIndex{
-	{
-		name:   "HTTPRoute",
-		lookup: noop,
-	},
-	{
-		name:   "TLSRoute",
-		lookup: noop,
-	},
-	{
-		name:   "GRPCRoute",
-		lookup: noop,
-	},
-	{
-		name:   "Ingress",
-		lookup: noop,
-	},
-	{
-		name:   "Service",
-		lookup: noop,
-	},
-	{
-		name:   "DNSEndpoint",
-		lookup: noop,
-	},
-}
-
 var (
 	ttlDefault        = uint32(60)
 	ttlSOA            = uint32(60)
@@ -95,7 +68,7 @@ type ResourceFilters struct {
 // Create a new Gateway instance
 func newGateway() *Gateway {
 	return &Gateway{
-		Resources:           []*resourceWithIndex{},
+		Resources:           staticResources,
 		ConfiguredResources: []*string{},
 		ttlLow:              ttlDefault,
 		ttlSOA:              ttlSOA,

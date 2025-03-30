@@ -26,13 +26,15 @@ type Fallen struct {
 }
 
 func TestLookup(t *testing.T) {
-	real := []string{"Ingress", "Service"}
-	fake := []string{"Pod", "Gateway"}
-
 	ctrl := &KubeController{hasSynced: true}
 
 	gw := newGateway()
+	gw.Zones = []string{"example.com."}
+	gw.Next = test.NextHandler(dns.RcodeSuccess, nil)
+	gw.ExternalAddrFunc = gw.SelfAddress
 	gw.Controller = ctrl
+	real := []string{"Ingress", "Service", "HTTPRoute", "TLSRoute", "GRPCRoute", "DNSEndpoint"}
+	fake := []string{"Pod", "Gateway"}
 
 	for _, resource := range real {
 		if found := gw.lookupResource(resource); found == nil {
@@ -48,7 +50,6 @@ func TestLookup(t *testing.T) {
 }
 
 func TestPlugin(t *testing.T) {
-
 	ctrl := &KubeController{hasSynced: true}
 
 	gw := newGateway()
@@ -84,7 +85,6 @@ func TestPlugin(t *testing.T) {
 }
 
 func TestPluginFallthrough(t *testing.T) {
-
 	ctrl := &KubeController{hasSynced: true}
 	gw := newGateway()
 	gw.Zones = []string{"example.com."}
