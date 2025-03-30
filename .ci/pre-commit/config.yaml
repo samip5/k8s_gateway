@@ -18,4 +18,8 @@ repos:
     rev: v1.5.5
     hooks:
       - id: remove-crlf
-      - id: remove-tabs
+
+  - repo: https://github.com/tekwizely/pre-commit-golang
+    rev: v1.0.0-rc.1
+    hooks:
+      - id: go-fmt

@@ -7,6 +7,8 @@ image:
 # Delegated domain
 domain: "foo.org"
 
+watchedResources: ["HTTPRoute", "Ingress", "Service"]
+
 service:
   type: NodePort
   port: 53

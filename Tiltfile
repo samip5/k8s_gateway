@@ -1,4 +1,4 @@
-allow_k8s_contexts('colima')
+# allow_k8s_contexts('talos')
 allow_k8s_contexts('local')
 
 # using others with the makefile
@@ -40,26 +40,17 @@ k8s_yaml(helm(
     )
 )
 
-# Baremetal ingress controller (nodeport-based)
 helm_remote('ingress-nginx',
             version="4.12.1",
             repo_name='ingress-nginx',
             set=['controller.admissionWebhooks.enabled=false'],
             repo_url='https://kubernetes.github.io/ingress-nginx')
 
-helm_remote('gateway',
-            version="1.19.3",
-            repo_name='istio',
-            namespace='default',
-            repo_url='https://istio-release.storage.googleapis.com/charts')
-
 # Backend deployment for testing
 k8s_yaml('./test/backend.yml')
 
-# gateway-apis
-k8s_yaml('./test/gateway-api/crds.yml')
+k8s_yaml('https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/experimental-install.yaml')
 
-# Gateway API
 k8s_kind('HTTPRoute', api_version='gateway.networking.k8s.io/v1')
 k8s_kind('TLSRoute', api_version='gateway.networking.k8s.io/v1alpha2')
 k8s_kind('GRPCRoute', api_version='gateway.networking.k8s.io/v1alpha2')

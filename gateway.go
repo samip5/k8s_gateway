@@ -1,270 +1,270 @@
 package gateway
 
 import (
-    "context"
-    "fmt"
-    "net"
-    "net/netip"
-    "strings"
+	"context"
+	"fmt"
+	"net"
+	"net/netip"
+	"strings"
 
-    "github.com/coredns/coredns/plugin"
-    "github.com/coredns/coredns/plugin/pkg/fall"
-    "github.com/coredns/coredns/request"
-    "github.com/miekg/dns"
+	"github.com/coredns/coredns/plugin"
+	"github.com/coredns/coredns/plugin/pkg/fall"
+	"github.com/coredns/coredns/request"
+	"github.com/miekg/dns"
 )
 
 type lookupFunc func(indexKeys []string) []netip.Addr
 
 type resourceWithIndex struct {
-    name   string
-    lookup lookupFunc
+	name   string
+	lookup lookupFunc
 }
 
 // Static resources with their default noop function
 var staticResources = []*resourceWithIndex{
-    {name: "HTTPRoute", lookup: noop},
-    {name: "TLSRoute", lookup: noop},
-    {name: "GRPCRoute", lookup: noop},
-    {name: "Ingress", lookup: noop},
-    {name: "Service", lookup: noop},
-    {name: "DNSEndpoint", lookup: noop},
+	{name: "HTTPRoute", lookup: noop},
+	{name: "TLSRoute", lookup: noop},
+	{name: "GRPCRoute", lookup: noop},
+	{name: "Ingress", lookup: noop},
+	{name: "Service", lookup: noop},
+	{name: "DNSEndpoint", lookup: noop},
 }
 
 var noop lookupFunc = func([]string) (result []netip.Addr) { return }
 
 var (
-    ttlDefault        = uint32(60)
-    ttlSOA            = uint32(60)
-    defaultApex       = "dns1.kube-system"
-    defaultHostmaster = "hostmaster"
-    defaultSecondNS   = ""
+	ttlDefault        = uint32(60)
+	ttlSOA            = uint32(60)
+	defaultApex       = "dns1.kube-system"
+	defaultHostmaster = "hostmaster"
+	defaultSecondNS   = ""
 )
 
 // Gateway stores all runtime configuration of a plugin
 type Gateway struct {
-    Next                plugin.Handler
-    Zones               []string
-    Resources           []*resourceWithIndex
-    ConfiguredResources []*string
-    ttlLow              uint32
-    ttlSOA              uint32
-    Controller          *KubeController
-    apex                string
-    hostmaster          string
-    secondNS            string
-    configFile          string
-    configContext       string
-    ExternalAddrFunc    func(request.Request) []dns.RR
-    resourceFilters     ResourceFilters
+	Next                plugin.Handler
+	Zones               []string
+	Resources           []*resourceWithIndex
+	ConfiguredResources []*string
+	ttlLow              uint32
+	ttlSOA              uint32
+	Controller          *KubeController
+	apex                string
+	hostmaster          string
+	secondNS            string
+	configFile          string
+	configContext       string
+	ExternalAddrFunc    func(request.Request) []dns.RR
+	resourceFilters     ResourceFilters
 
-    Fall fall.F
+	Fall fall.F
 }
 
 type ResourceFilters struct {
-    ingressClasses []string
-    gatewayClasses []string
+	ingressClasses []string
+	gatewayClasses []string
 }
 
 // Create a new Gateway instance
 func newGateway() *Gateway {
-    return &Gateway{
-        Resources:           staticResources,
-        ConfiguredResources: []*string{},
-        ttlLow:              ttlDefault,
-        ttlSOA:              ttlSOA,
-        apex:                defaultApex,
-        secondNS:            defaultSecondNS,
-        hostmaster:          defaultHostmaster,
-    }
+	return &Gateway{
+		Resources:           staticResources,
+		ConfiguredResources: []*string{},
+		ttlLow:              ttlDefault,
+		ttlSOA:              ttlSOA,
+		apex:                defaultApex,
+		secondNS:            defaultSecondNS,
+		hostmaster:          defaultHostmaster,
+	}
 }
 
 func (gw *Gateway) lookupResource(resource string) *resourceWithIndex {
-    for _, r := range gw.Resources {
-        if r.name == resource {
-            return r
-        }
-    }
-    return nil
+	for _, r := range gw.Resources {
+		if r.name == resource {
+			return r
+		}
+	}
+	return nil
 }
 
 // Update resources in the Gateway based on provided configuration
 func (gw *Gateway) updateResources(newResources []string) {
-    log.Infof("Updating resources with: %v", newResources)
-    gw.Resources = nil // Clear existing resources
+	log.Infof("updating resources with: %v", newResources)
+	gw.Resources = nil // Clear existing resources
 
-    // Create a map to hold enabled resources
-    resourceLookup := make(map[string]*resourceWithIndex)
+	// Create a map to hold enabled resources
+	resourceLookup := make(map[string]*resourceWithIndex)
 
-    // Fill the resource lookup map from static resources
-    for _, resource := range staticResources {
-        resourceLookup[resource.name] = resource
-    }
+	// Fill the resource lookup map from static resources
+	for _, resource := range staticResources {
+		resourceLookup[resource.name] = resource
+	}
 
-    // Populate gw.Resources based on newResources
-    for _, name := range newResources {
-        if resource, exists := resourceLookup[name]; exists {
-            log.Debugf("Adding resource: %s", resource.name)
-            gw.Resources = append(gw.Resources, resource)
-        } else {
-            log.Warningf("Resource not found in static resources: %s", name)
-        }
-    }
+	// Populate gw.Resources based on newResources
+	for _, name := range newResources {
+		if resource, exists := resourceLookup[name]; exists {
+			log.Debugf("adding resource: %s", resource.name)
+			gw.Resources = append(gw.Resources, resource)
+		} else {
+			log.Warningf("resource not found in static resources: %s", name)
+		}
+	}
 
-    log.Debugf("Final resources: %v", gw.Resources)
+	log.Debugf("final resources: %v", gw.Resources)
 }
 
 func (gw *Gateway) SetConfiguredResources(newResources []string) {
-    gw.ConfiguredResources = make([]*string, len(newResources))
-    for i, resource := range newResources {
-        gw.ConfiguredResources[i] = &resource
-    }
+	gw.ConfiguredResources = make([]*string, len(newResources))
+	for i, resource := range newResources {
+		gw.ConfiguredResources[i] = &resource
+	}
 }
 
 // ServeDNS implements the plugin.Handle interface.
 func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
-    state := request.Request{W: w, Req: r}
-    //log.Infof("Incoming query %s", state.QName())
+	state := request.Request{W: w, Req: r}
+	//log.Infof("Incoming query %s", state.QName())
 
-    qname := state.QName()
-    zone := plugin.Zones(gw.Zones).Matches(qname)
-    if zone == "" {
-        log.Debugf("Request %s has not matched any zones %v", qname, gw.Zones)
-        return plugin.NextOrFailure(gw.Name(), gw.Next, ctx, w, r)
-    }
-    zone = qname[len(qname)-len(zone):] // maintain case of original query
-    state.Zone = zone
+	qname := state.QName()
+	zone := plugin.Zones(gw.Zones).Matches(qname)
+	if zone == "" {
+		log.Debugf("request %s has not matched any zones %v", qname, gw.Zones)
+		return plugin.NextOrFailure(gw.Name(), gw.Next, ctx, w, r)
+	}
+	zone = qname[len(qname)-len(zone):] // maintain case of original query
+	state.Zone = zone
 
-    // Indexer cache can be built from `name.namespace` without zone
-    zonelessQuery := stripDomain(qname, zone)
+	// Indexer cache can be built from `name.namespace` without zone
+	zonelessQuery := stripDomain(qname, zone)
 
-    // Computing keys to look up in cache
-    var indexKeys []string
-    strippedQName := stripClosingDot(state.QName())
-    if len(zonelessQuery) != 0 && zonelessQuery != strippedQName {
-        indexKeys = []string{strippedQName, zonelessQuery}
-    } else {
-        indexKeys = []string{strippedQName}
-    }
-    log.Debugf("Computed Index Keys %v", indexKeys)
+	// Computing keys to look up in cache
+	var indexKeys []string
+	strippedQName := stripClosingDot(state.QName())
+	if len(zonelessQuery) != 0 && zonelessQuery != strippedQName {
+		indexKeys = []string{strippedQName, zonelessQuery}
+	} else {
+		indexKeys = []string{strippedQName}
+	}
+	log.Debugf("computed Index Keys %v", indexKeys)
 
-    if !gw.Controller.HasSynced() {
-        // TODO maybe there's a better way to do this? e.g. return an error back to the client?
-        return dns.RcodeServerFailure, plugin.Error(thisPlugin, fmt.Errorf("Could not sync required resources"))
-    }
+	if !gw.Controller.HasSynced() {
+		// TODO maybe there's a better way to do this? e.g. return an error back to the client?
+		return dns.RcodeServerFailure, plugin.Error(thisPlugin, fmt.Errorf("could not sync required resources"))
+	}
 
-    var isRootZoneQuery bool
-    for _, z := range gw.Zones {
-        if state.Name() == z { // apex query
-            isRootZoneQuery = true
-            break
-        }
-        if dns.IsSubDomain(gw.apex+"."+z, state.Name()) {
-            // dns subdomain test for ns. and dns. queries
-            ret, err := gw.serveSubApex(state)
-            return ret, err
-        }
-    }
+	var isRootZoneQuery bool
+	for _, z := range gw.Zones {
+		if state.Name() == z { // apex query
+			isRootZoneQuery = true
+			break
+		}
+		if dns.IsSubDomain(gw.apex+"."+z, state.Name()) {
+			// dns subdomain test for ns. and dns. queries
+			ret, err := gw.serveSubApex(state)
+			return ret, err
+		}
+	}
 
-    var addrs []netip.Addr
+	var addrs []netip.Addr
 
-    // Iterate over supported resources and lookup DNS queries
-    // Stop once we've found at least one match
-    for _, resource := range gw.Resources {
-        addrs = resource.lookup(indexKeys)
-        if len(addrs) > 0 {
-            break
-        }
-    }
-    log.Debugf("Computed response addresses %v", addrs)
+	// Iterate over supported resources and lookup DNS queries
+	// Stop once we've found at least one match
+	for _, resource := range gw.Resources {
+		addrs = resource.lookup(indexKeys)
+		if len(addrs) > 0 {
+			break
+		}
+	}
+	log.Debugf("computed response addresses %v", addrs)
 
-    // Fall through if no host matches
-    if len(addrs) == 0 && gw.Fall.Through(qname) {
-        return plugin.NextOrFailure(gw.Name(), gw.Next, ctx, w, r)
-    }
+	// Fall through if no host matches
+	if len(addrs) == 0 && gw.Fall.Through(qname) {
+		return plugin.NextOrFailure(gw.Name(), gw.Next, ctx, w, r)
+	}
 
-    m := new(dns.Msg)
-    m.SetReply(state.Req)
+	m := new(dns.Msg)
+	m.SetReply(state.Req)
 
-    var ipv4Addrs []netip.Addr
-    var ipv6Addrs []netip.Addr
+	var ipv4Addrs []netip.Addr
+	var ipv6Addrs []netip.Addr
 
-    for _, addr := range addrs {
-        if addr.Is4() {
-            ipv4Addrs = append(ipv4Addrs, addr)
-        }
-        if addr.Is6() {
-            ipv6Addrs = append(ipv6Addrs, addr)
-        }
-    }
+	for _, addr := range addrs {
+		if addr.Is4() {
+			ipv4Addrs = append(ipv4Addrs, addr)
+		}
+		if addr.Is6() {
+			ipv6Addrs = append(ipv6Addrs, addr)
+		}
+	}
 
-    switch state.QType() {
-    case dns.TypeA:
+	switch state.QType() {
+	case dns.TypeA:
 
-        if len(ipv4Addrs) == 0 {
+		if len(ipv4Addrs) == 0 {
 
-            if !isRootZoneQuery {
-                // No match, return NXDOMAIN
-                m.Rcode = dns.RcodeNameError
-            }
+			if !isRootZoneQuery {
+				// No match, return NXDOMAIN
+				m.Rcode = dns.RcodeNameError
+			}
 
-            m.Ns = []dns.RR{gw.soa(state)}
+			m.Ns = []dns.RR{gw.soa(state)}
 
-        } else {
+		} else {
 
-            m.Answer = gw.A(state.Name(), ipv4Addrs)
-        }
-    case dns.TypeAAAA:
+			m.Answer = gw.A(state.Name(), ipv4Addrs)
+		}
+	case dns.TypeAAAA:
 
-        if len(ipv6Addrs) == 0 {
+		if len(ipv6Addrs) == 0 {
 
-            if !isRootZoneQuery {
-                // No match, return NXDOMAIN
-                m.Rcode = dns.RcodeNameError
-            }
+			if !isRootZoneQuery {
+				// No match, return NXDOMAIN
+				m.Rcode = dns.RcodeNameError
+			}
 
-            // as per rfc4074 #3
-            if len(ipv4Addrs) > 0 {
-                m.Rcode = dns.RcodeSuccess
-            }
+			// as per rfc4074 #3
+			if len(ipv4Addrs) > 0 {
+				m.Rcode = dns.RcodeSuccess
+			}
 
-            m.Ns = []dns.RR{gw.soa(state)}
+			m.Ns = []dns.RR{gw.soa(state)}
 
-        } else {
+		} else {
 
-            m.Answer = gw.AAAA(state.Name(), ipv6Addrs)
-        }
+			m.Answer = gw.AAAA(state.Name(), ipv6Addrs)
+		}
 
-    case dns.TypeSOA:
+	case dns.TypeSOA:
 
-        m.Answer = []dns.RR{gw.soa(state)}
+		m.Answer = []dns.RR{gw.soa(state)}
 
-    case dns.TypeNS:
+	case dns.TypeNS:
 
-        if isRootZoneQuery {
-            m.Answer = gw.nameservers(state)
+		if isRootZoneQuery {
+			m.Answer = gw.nameservers(state)
 
-            addr := gw.ExternalAddrFunc(state)
-            for _, rr := range addr {
-                rr.Header().Ttl = gw.ttlSOA
-                m.Extra = append(m.Extra, rr)
-            }
-        } else {
-            m.Ns = []dns.RR{gw.soa(state)}
-        }
+			addr := gw.ExternalAddrFunc(state)
+			for _, rr := range addr {
+				rr.Header().Ttl = gw.ttlSOA
+				m.Extra = append(m.Extra, rr)
+			}
+		} else {
+			m.Ns = []dns.RR{gw.soa(state)}
+		}
 
-    default:
-        m.Ns = []dns.RR{gw.soa(state)}
-    }
+	default:
+		m.Ns = []dns.RR{gw.soa(state)}
+	}
 
-    // Force to true to fix broken behaviour of legacy glibc `getaddrinfo`.
-    // See https://github.com/coredns/coredns/pull/3573
-    m.Authoritative = true
+	// Force to true to fix broken behaviour of legacy glibc `getaddrinfo`.
+	// See https://github.com/coredns/coredns/pull/3573
+	m.Authoritative = true
 
-    if err := w.WriteMsg(m); err != nil {
-        log.Errorf("Failed to send a response: %s", err)
-    }
+	if err := w.WriteMsg(m); err != nil {
+		log.Errorf("failed to send a response: %s", err)
+	}
 
-    return dns.RcodeSuccess, nil
+	return dns.RcodeSuccess, nil
 }
 
 // Name implements the Handler interface.
@@ -272,62 +272,62 @@ func (gw *Gateway) Name() string { return thisPlugin }
 
 // A does the A-record lookup in ingress indexer
 func (gw *Gateway) A(name string, results []netip.Addr) (records []dns.RR) {
-    dup := make(map[string]struct{})
-    for _, result := range results {
-        if _, ok := dup[result.String()]; !ok {
-            dup[result.String()] = struct{}{}
-            records = append(records, &dns.A{Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: gw.ttlLow}, A: net.ParseIP(result.String())})
-        }
-    }
-    return records
+	dup := make(map[string]struct{})
+	for _, result := range results {
+		if _, ok := dup[result.String()]; !ok {
+			dup[result.String()] = struct{}{}
+			records = append(records, &dns.A{Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: gw.ttlLow}, A: net.ParseIP(result.String())})
+		}
+	}
+	return records
 }
 
 func (gw *Gateway) AAAA(name string, results []netip.Addr) (records []dns.RR) {
-    dup := make(map[string]struct{})
-    for _, result := range results {
-        if _, ok := dup[result.String()]; !ok {
-            dup[result.String()] = struct{}{}
-            records = append(records, &dns.AAAA{Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: gw.ttlLow}, AAAA: net.ParseIP(result.String())})
-        }
-    }
-    return records
+	dup := make(map[string]struct{})
+	for _, result := range results {
+		if _, ok := dup[result.String()]; !ok {
+			dup[result.String()] = struct{}{}
+			records = append(records, &dns.AAAA{Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: gw.ttlLow}, AAAA: net.ParseIP(result.String())})
+		}
+	}
+	return records
 }
 
 // SelfAddress returns the address of the local k8s_gateway service
 func (gw *Gateway) SelfAddress(state request.Request) (records []dns.RR) {
 
-    var addrs1, addrs2 []netip.Addr
-    for _, resource := range gw.Resources {
-        results := resource.lookup([]string{gw.apex})
-        if len(results) > 0 {
-            addrs1 = append(addrs1, results...)
-        }
-        results = resource.lookup([]string{gw.secondNS})
-        if len(results) > 0 {
-            addrs2 = append(addrs2, results...)
-        }
-    }
+	var addrs1, addrs2 []netip.Addr
+	for _, resource := range gw.Resources {
+		results := resource.lookup([]string{gw.apex})
+		if len(results) > 0 {
+			addrs1 = append(addrs1, results...)
+		}
+		results = resource.lookup([]string{gw.secondNS})
+		if len(results) > 0 {
+			addrs2 = append(addrs2, results...)
+		}
+	}
 
-    records = append(records, gw.A(gw.apex+"."+state.Zone, addrs1)...)
+	records = append(records, gw.A(gw.apex+"."+state.Zone, addrs1)...)
 
-    if state.QType() == dns.TypeNS {
-        records = append(records, gw.A(gw.secondNS+"."+state.Zone, addrs2)...)
-    }
+	if state.QType() == dns.TypeNS {
+		records = append(records, gw.A(gw.secondNS+"."+state.Zone, addrs2)...)
+	}
 
-    return records
-    //return records
+	return records
+	//return records
 }
 
 // Strips the zone from FQDN and return a hostname
 func stripDomain(qname, zone string) string {
-    hostname := qname[:len(qname)-len(zone)]
-    return stripClosingDot(hostname)
+	hostname := qname[:len(qname)-len(zone)]
+	return stripClosingDot(hostname)
 }
 
 // Strips the closing dot unless it's "."
 func stripClosingDot(s string) string {
-    if len(s) > 1 {
-        return strings.TrimSuffix(s, ".")
-    }
-    return s
+	if len(s) > 1 {
+		return strings.TrimSuffix(s, ".")
+	}
+	return s
 }

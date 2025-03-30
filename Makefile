@@ -1,4 +1,5 @@
 # The binary to build (just the basename).
+CONTAINER_RUNTIME ?= docker
 BIN := $(shell basename $$PWD)
 COMMIT := $(shell git describe --dirty --always)
 TAG := $(shell git describe --tags --dirty || echo latest)

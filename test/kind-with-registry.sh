@@ -20,6 +20,7 @@
 set -o errexit
 
 # desired cluster name; default is "kind"
+CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-docker}"
 KIND_CLUSTER_NAME="${KIND_CLUSTER_NAME:-kind}"
 
 kind_version=$(kind version)
@@ -33,16 +34,16 @@ case "${kind_version}" in
 esac
 
 # create registry container unless it already exists
-running="$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
-if [ "${running}" != 'true' ]; then
-  docker run \
-    -d --restart=always -p "${reg_port}:5000" --name "${reg_name}" \
-    registry:2
-fi
+running="$($CONTAINER_RUNTIME inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
+# if [ "${running}" != 'true' ]; then
+#   $CONTAINER_RUNTIME run \
+#     -d --restart=always -p "${reg_port}:5000" --name "${reg_name}" \
+#     registry:2
+# fi
 
 reg_host="${reg_name}"
 if [ "${kind_network}" = "bridge" ]; then
-    reg_host="$(docker inspect -f '{{.NetworkSettings.IPAddress}}' "${reg_name}")"
+    reg_host="$($CONTAINER_RUNTIME inspect -f '{{.NetworkSettings.IPAddress}}' "${reg_name}")"
 fi
 echo "Registry Host: ${reg_host}"
 
@@ -78,7 +79,7 @@ data:
 EOF
 
 if [ "${kind_network}" != "bridge" ]; then
-  containers=$(docker network inspect ${kind_network} -f "{{range .Containers}}{{.Name}} {{end}}")
+  containers=$($CONTAINER_RUNTIME network inspect ${kind_network} -f "{{range .Containers}}{{.Name}} {{end}}")
   needs_connect="true"
   for c in $containers; do
     if [ "$c" = "${reg_name}" ]; then
@@ -86,6 +87,6 @@ if [ "${kind_network}" != "bridge" ]; then
     fi
   done
   if [ "${needs_connect}" = "true" ]; then
-    docker network connect "${kind_network}" "${reg_name}" || true
+    $CONTAINER_RUNTIME network connect "${kind_network}" "${reg_name}" || true
   fi
 fi

@@ -2,8 +2,6 @@ bpf:
   masquerade: true
 cluster:
   name: local
-containerRuntime:
-  integration: containerd
 endpointRoutes:
   enabled: true
 enableCiliumEndpointSlice: true
@@ -22,9 +20,6 @@ ipam:
     clusterPoolIPv4PodCIDRList:
       - "10.43.0.0/16"
     clusterPoolIPv4MaskSize: 24
-    # clusterPoolIPv6PodCIDRList:
-    #   - "fd00::/104"
-    # clusterPoolIPv6MaskSize: 120
 kubeProxyReplacement: true
 kubeProxyReplacementHealthzBindAddr: 0.0.0.0:10256
 k8sServiceHost: 127.0.0.1
@@ -55,4 +50,3 @@ securityContext:
       - NET_ADMIN
       - SYS_ADMIN
       - SYS_RESOURCE
-tunnel: disabled

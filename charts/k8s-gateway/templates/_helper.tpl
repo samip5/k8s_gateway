@@ -112,14 +112,14 @@ false
 {{/*
   k8s-gateway.gatewayAPIs:
   Returns "true" if any one of the Gateway API resources
-  (HTTPRoute, TLSRoute, GRPCRoute, UDPRoute) is in .Values.watchedResources,
+  (HTTPRoute, TLSRoute, GRPCRoute) is in .Values.watchedResources,
   or if watchedResources is not set; returns "false" otherwise.
 */}}
 {{- define "k8s-gateway.gatewayAPI" -}}
   {{- if .Values.watchedResources -}}
     {{- $found := false -}}
     {{- range .Values.watchedResources -}}
-      {{- if or (eq . "HTTPRoute") (eq . "TLSRoute") (eq . "GRPCRoute") (eq . "UDPRoute") -}}
+      {{- if or (eq . "HTTPRoute") (eq . "TLSRoute") (eq . "GRPCRoute") -}}
         {{- $found = true -}}
       {{- end -}}
     {{- end -}}

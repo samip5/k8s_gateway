@@ -164,6 +164,8 @@ To cut a new plugin release the following is required:
 
 This repository contains a [Tiltfile](https://tilt.dev/) that can be used for local development. To build a local k8s cluster with kind run:
 
+NOTE: if you're using something else other than docker please prefix the `make setup|up|nuke` commands with `CONTAINER_RUNTIME` or set CONTAINER_RUNTIME before executing them.
+
 ```
 make setup
 ```
@@ -214,70 +216,3 @@ To cleanup local environment do:
 ```
 make nuke
 ```
-
-## Apple Silicon Development
-
-Developing with apple silicon requires lima/colima installed on your machine. It sadly, did not work at all with kind.
-Below, you'll find the `yaml` used for developing with Cilium CNI and k3s.
-
-Colima version at the time: [v0.5.6](https://github.com/abiosoft/colima/releases/tag/v0.5.6)
-
-```yaml
-cpu: 6
-disk: 60
-memory: 16
-arch: host
-runtime: containerd
-kubernetes:
-  enabled: true
-  version: v1.31.0+k3s1
-  k3sArgs:
-    - --flannel-backend=none
-    - --disable=servicelb
-    - --disable=traefik
-    - --disable-network-policy
-    - --disable-kube-proxy
-autoActivate: true
-network:
-  address: false
-  dns: []
-  dnsHosts:
-    host.docker.internal: host.lima.internal
-  driver: slirp
-forwardAgent: false
-docker:
-  insecure-registries:
-    - localhost:5000
-    - host.docker.internal:5000
-vmType: vz
-rosetta: true
-mountType: virtiofs
-mountInotify: false
-cpuType: host
-layer: false
-provision:
-  - mode: system
-    script: |
-      set -e
-
-      # needed for cilium
-      mount bpffs -t bpf /sys/fs/bpf
-      mount --make-shared /sys/fs/bpf
-
-      mkdir -p /run/cilium/cgroupv2
-      mount -t cgroup2 none /run/cilium/cgroupv2
-      mount --make-shared /run/cilium/cgroupv2/
-      ln -s /opt/cni/bin/cilium-cni /usr/libexec/cni/cilium-cni
-sshConfig: true
-mounts: []
-env: {}
-cgroupsV2: false
-```
-
-### Steps
-
-1. In `Tiltfile.nerdctl`
-2. `colima start` with above configuration
-3. `tilt up -f Tiltfile.nerdctl` + space bar for the environment to trigger.
-
-The stacks should deploy, and you'll have a proper stack that builds `k8s-gateway` with `coredns` and deploys to `kube-system` namespace.
