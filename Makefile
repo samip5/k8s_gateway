@@ -53,7 +53,7 @@ clean:
 
 ## Build the docker image
 docker: test
-	docker buildx build --push \
+	$(CONTAINER_RUNTIME) buildx build --push \
 		--build-arg LDFLAGS=$(LDFLAGS) \
 		--platform ${ARCHS} \
 		-t ${IMG}:${COMMIT} \
@@ -62,7 +62,7 @@ docker: test
 
 ## Release the current code with git tag  and `latest`
 release: test
-	docker buildx build --push \
+	$(CONTAINER_RUNTIME) buildx build --push \
 		--build-arg LDFLAGS=$(LDFLAGS) \
 		--platform ${ARCHS} \
 		-t ${IMG}:${TAG} \

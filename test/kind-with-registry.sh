@@ -35,11 +35,11 @@ esac
 
 # create registry container unless it already exists
 running="$($CONTAINER_RUNTIME inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
-# if [ "${running}" != 'true' ]; then
-#   $CONTAINER_RUNTIME run \
-#     -d --restart=always -p "${reg_port}:5000" --name "${reg_name}" \
-#     registry:2
-# fi
+if [ "${running}" != 'true' ]; then
+  $CONTAINER_RUNTIME run \
+    -d --restart=always -p "${reg_port}:5000" --name "${reg_name}" \
+    registry:2
+fi
 
 reg_host="${reg_name}"
 if [ "${kind_network}" = "bridge" ]; then
