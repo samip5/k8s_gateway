@@ -2,7 +2,7 @@
 BIN := $(shell basename $$PWD)
 COMMIT := $(shell git describe --dirty --always)
 TAG := $(shell git describe --tags --dirty || echo latest)
-LDFLAGS := "-s -w -X github.com/coredns/coredns/coremain.GitCommit=$(COMMIT)"
+LDFLAGS := "-s -w -X github.com/coredns/coredns/coremain.GitCommit=$(COMMIT) -X main.pluginVersion=${VERSION}"
 ARCHS := "linux/amd64,linux/arm64"
 
 # Where to push the docker image.
@@ -13,16 +13,16 @@ REGISTRY ?= ghcr.io/k8s-gateway
 IMG ?= $(REGISTRY)/$(BIN)
 
 setup:
-	./test/kind-with-registry.sh 
+	./test/kind-with-registry.sh
 
-up: 
+up:
 	tilt up
 
 down:
 	tilt down
 
-nuke: 
-	./test/teardown-kind-with-registry.sh 
+nuke:
+	./test/teardown-kind-with-registry.sh
 
 ## Build the plugin binary
 build:

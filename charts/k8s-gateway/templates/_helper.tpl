@@ -111,7 +111,7 @@ false
 
 {{/*
   k8s-gateway.gatewayAPIs:
-  Returns "true" if any one of the Gateway API resources 
+  Returns "true" if any one of the Gateway API resources
   (HTTPRoute, TLSRoute, GRPCRoute, UDPRoute) is in .Values.watchedResources,
   or if watchedResources is not set; returns "false" otherwise.
 */}}

@@ -5,6 +5,8 @@ builds:
   - id: coredns
     main: ./cmd/coredns.go
     binary: coredns
+    ldflags:
+      - -X main.pluginVersion={{.Version}}
     env:
       - CGO_ENABLED=0
     goos:

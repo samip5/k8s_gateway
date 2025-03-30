@@ -77,3 +77,4 @@ jobs:
       - name: Collect changed charts
         uses: bjw-s-labs/helm-charts-actions/collect-charts@2025.2.0
         id: changed-charts
+        if: contains(steps.changed-files.outputs.allAddedOrModified_files, 'charts/')

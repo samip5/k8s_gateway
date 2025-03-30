@@ -14,8 +14,8 @@ local_resource('recompile', binary(), deps=['cmd', 'gateway.go', 'kubernetes.go'
 
 # if using mac m1+, you'll need to use colima
 nerdctl_build(IMG, '.',
-    dockerfile='tilt.Dockerfile', 
-    entrypoint=['/coredns'], 
+    dockerfile='tilt.Dockerfile',
+    entrypoint=['/coredns'],
     live_update=[
         sync('./coredns', '/coredns'),
         ]

@@ -1,6 +1,8 @@
 FROM --platform=${BUILDPLATFORM} docker.io/library/golang:1.24 AS builder
 
 ARG LDFLAGS
+ARG VERSION=dev
+ARG REVISION=dev
 
 WORKDIR /build
 
@@ -17,12 +19,12 @@ COPY *.go ./
 ARG TARGETOS
 ARG TARGETARCH
 
-ENV CGO_ENABLED=0
-ENV GO111MODULE=on
-ENV GOARCH=$TARGETARCH
-ENV GOOS=$TARGETOS
+ENV CGO_ENABLED=0 \
+    GO111MODULE=on \
+    GOARCH=$TARGETARCH \
+    GOOS=$TARGETOS
 
-RUN go build -ldflags "${LDFLAGS}" -o coredns cmd/coredns.go
+RUN go build -ldflags "-s -w -X github.com/coredns/coredns/coremain.GitCommit=${REVISION} -X main.pluginVersion=${VERSION}" -o coredns cmd/coredns.go
 
 # Update CA Certs
 FROM docker.io/library/alpine:3.21 AS certs
