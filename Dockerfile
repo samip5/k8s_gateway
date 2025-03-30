@@ -1,6 +1,8 @@
 FROM --platform=${BUILDPLATFORM} docker.io/library/golang:1.24 as builder
 
 ARG LDFLAGS
+ARG VERSION
+ARG REVISION
 
 WORKDIR /build
 
@@ -23,7 +25,7 @@ ENV CGO_ENABLED=0 \
     GOOS=$TARGETOS \
 
 
-RUN go build -ldflags "${LDFLAGS}" -o coredns cmd/coredns.go
+RUN go build -ldflags "-s -w -X github.com/coredns/coredns/coremain.GitCommit=$(REVISION) -X main.pluginVersion=${VERSION}" -o coredns cmd/coredns.go
 
 FROM debian:stable-slim
 
