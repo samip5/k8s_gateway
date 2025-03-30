@@ -43,7 +43,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/${{ github.repository }}/k8s_gateway
+            ghcr.io/k8s-gateway/k8s_gateway
           tags: |
             type=ref,event=branch
             type=ref,event=pr
