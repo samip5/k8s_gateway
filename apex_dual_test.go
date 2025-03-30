@@ -12,20 +12,20 @@ import (
 	"github.com/miekg/dns"
 )
 
-func setupEmptyLookupFuncs() {
-	if resource := lookupResource("HTTPRoute"); resource != nil {
+func setupEmptyLookupFuncs(gw *Gateway) {
+	if resource := gw.lookupResource("HTTPRoute"); resource != nil {
 		resource.lookup = func(_ []string) []netip.Addr { return []netip.Addr{} }
 	}
-	if resource := lookupResource("TLSRoute"); resource != nil {
+	if resource := gw.lookupResource("TLSRoute"); resource != nil {
 		resource.lookup = func(_ []string) []netip.Addr { return []netip.Addr{} }
 	}
-	if resource := lookupResource("GRPCRoute"); resource != nil {
+	if resource := gw.lookupResource("GRPCRoute"); resource != nil {
 		resource.lookup = func(_ []string) []netip.Addr { return []netip.Addr{} }
 	}
-	if resource := lookupResource("Ingress"); resource != nil {
+	if resource := gw.lookupResource("Ingress"); resource != nil {
 		resource.lookup = func(_ []string) []netip.Addr { return []netip.Addr{} }
 	}
-	if resource := lookupResource("Service"); resource != nil {
+	if resource := gw.lookupResource("Service"); resource != nil {
 		resource.lookup = func(_ []string) []netip.Addr { return []netip.Addr{} }
 	}
 }
@@ -38,7 +38,7 @@ func TestDualNS(t *testing.T) {
 	gw.Controller = ctrl
 	gw.ExternalAddrFunc = selfDualAddressTest
 	gw.secondNS = "dns2.kube-system"
-	setupEmptyLookupFuncs()
+	setupEmptyLookupFuncs(gw)
 
 	ctx := context.TODO()
 	for i, tc := range testsDualNS {

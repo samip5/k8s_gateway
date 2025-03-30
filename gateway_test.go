@@ -26,24 +26,6 @@ type Fallen struct {
 }
 
 func TestLookup(t *testing.T) {
-	real := []string{"Ingress", "Service", "HTTPRoute", "TLSRoute", "GRPCRoute", "DNSEndpoint"}
-	fake := []string{"Pod", "Gateway"}
-
-	for _, resource := range real {
-		if found := lookupResource(resource); found == nil {
-			t.Errorf("Could not lookup supported resource %s", resource)
-		}
-	}
-
-	for _, resource := range fake {
-		if found := lookupResource(resource); found != nil {
-			t.Errorf("Located unsupported resource %s", resource)
-		}
-	}
-}
-
-func TestPlugin(t *testing.T) {
-
 	ctrl := &KubeController{hasSynced: true}
 
 	gw := newGateway()
@@ -51,7 +33,31 @@ func TestPlugin(t *testing.T) {
 	gw.Next = test.NextHandler(dns.RcodeSuccess, nil)
 	gw.ExternalAddrFunc = gw.SelfAddress
 	gw.Controller = ctrl
-	setupLookupFuncs()
+	real := []string{"Ingress", "Service", "HTTPRoute", "TLSRoute", "GRPCRoute", "DNSEndpoint"}
+	fake := []string{"Pod", "Gateway"}
+
+	for _, resource := range real {
+		if found := gw.lookupResource(resource); found == nil {
+			t.Errorf("Could not lookup supported resource %s", resource)
+		}
+	}
+
+	for _, resource := range fake {
+		if found := gw.lookupResource(resource); found != nil {
+			t.Errorf("Located unsupported resource %s", resource)
+		}
+	}
+}
+
+func TestPlugin(t *testing.T) {
+	ctrl := &KubeController{hasSynced: true}
+
+	gw := newGateway()
+	gw.Zones = []string{"example.com."}
+	gw.Next = test.NextHandler(dns.RcodeSuccess, nil)
+	gw.ExternalAddrFunc = gw.SelfAddress
+	gw.Controller = ctrl
+	setupLookupFuncs(gw)
 
 	ctx := context.TODO()
 	for i, tc := range tests {
@@ -79,14 +85,13 @@ func TestPlugin(t *testing.T) {
 }
 
 func TestPluginFallthrough(t *testing.T) {
-
 	ctrl := &KubeController{hasSynced: true}
 	gw := newGateway()
 	gw.Zones = []string{"example.com."}
 	gw.Next = test.NextHandler(dns.RcodeSuccess, Fallen{})
 	gw.ExternalAddrFunc = gw.SelfAddress
 	gw.Controller = ctrl
-	setupLookupFuncs()
+	setupLookupFuncs(gw)
 
 	ctx := context.TODO()
 	for i, tc := range testsFallthrough {
@@ -304,23 +309,23 @@ func testDNSEndpointLookup(keys []string) (results []netip.Addr) {
 	return results
 }
 
-func setupLookupFuncs() {
-	if resource := lookupResource("Ingress"); resource != nil {
+func setupLookupFuncs(gw *Gateway) {
+	if resource := gw.lookupResource("Ingress"); resource != nil {
 		resource.lookup = testIngressLookup
 	}
-	if resource := lookupResource("Service"); resource != nil {
+	if resource := gw.lookupResource("Service"); resource != nil {
 		resource.lookup = testServiceLookup
 	}
-	if resource := lookupResource("HTTPRoute"); resource != nil {
+	if resource := gw.lookupResource("HTTPRoute"); resource != nil {
 		resource.lookup = testRouteLookup
 	}
-	if resource := lookupResource("TLSRoute"); resource != nil {
+	if resource := gw.lookupResource("TLSRoute"); resource != nil {
 		resource.lookup = testRouteLookup
 	}
-	if resource := lookupResource("GRPCRoute"); resource != nil {
+	if resource := gw.lookupResource("GRPCRoute"); resource != nil {
 		resource.lookup = testRouteLookup
 	}
-	if resource := lookupResource("DNSEndpoint"); resource != nil {
+	if resource := gw.lookupResource("DNSEndpoint"); resource != nil {
 		resource.lookup = testDNSEndpointLookup
 	}
 }

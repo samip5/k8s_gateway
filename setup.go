@@ -68,8 +68,8 @@ func parse(c *caddy.Controller) (*Gateway, error) {
 				gw.secondNS = args[0]
 			case "resources":
 				args := c.RemainingArgs()
-
 				gw.updateResources(args)
+				gw.SetConfiguredResources(args)
 
 				if len(args) == 0 {
 					return nil, c.Errf("Incorrectly formatted 'resource' parameter")
