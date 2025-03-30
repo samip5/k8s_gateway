@@ -1,8 +1,8 @@
 FROM --platform=${BUILDPLATFORM} docker.io/library/golang:1.24 as builder
 
 ARG LDFLAGS
-ARG VERSION
-ARG REVISION
+ARG VERSION=dev
+ARG REVISION=dev
 
 WORKDIR /build
 
