@@ -19,7 +19,7 @@ func TestApex(t *testing.T) {
 	gw.Next = test.NextHandler(dns.RcodeSuccess, nil)
 	gw.Controller = ctrl
 	gw.ExternalAddrFunc = selfAddressTest
-	setupEmptyLookupFuncs()
+	setupEmptyLookupFuncs(gw)
 
 	ctx := context.TODO()
 	for i, tc := range testsApex {
