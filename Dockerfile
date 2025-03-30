@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} docker.io/library/golang:1.24 as builder
+FROM --platform=${BUILDPLATFORM} docker.io/library/golang:1.24 AS builder
 
 ARG LDFLAGS
 
@@ -9,7 +9,7 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
-RUN go mod download
+RUN go mod tidy
 
 COPY cmd/ cmd/
 COPY *.go ./
@@ -24,14 +24,15 @@ ENV GOOS=$TARGETOS
 
 RUN go build -ldflags "${LDFLAGS}" -o coredns cmd/coredns.go
 
-FROM debian:stable-slim
+# Update CA Certs
+FROM docker.io/library/alpine:3.21@sha256:a8560b36e8b8210634f77d9f7f9efd7ffa463e380b75e2e74aff4511df3ef88c AS certs
 
-RUN apt-get update && apt-get -uy upgrade
-RUN apt-get -y install ca-certificates && update-ca-certificates
+RUN apk --update --no-cache add ca-certificates
 
+# Final Build
 FROM scratch
 
-COPY --from=0 /etc/ssl/certs /etc/ssl/certs
+COPY --from=certs /etc/ssl/certs /etc/ssl/certs
 COPY --from=builder /build/coredns .
 
 EXPOSE 53 53/udp
