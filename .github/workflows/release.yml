@@ -71,4 +71,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            LDFLAGS="-X main.pluginVersion=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}"
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
