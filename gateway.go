@@ -95,8 +95,8 @@ type ResourceFilters struct {
 // Create a new Gateway instance
 func newGateway() *Gateway {
 	return &Gateway{
-		Resources:           make([]*resourceWithIndex, 0),
-		ConfiguredResources: make([]*string, 0),
+		Resources:           []*resourceWithIndex{},
+		ConfiguredResources: []*string{},
 		ttlLow:              ttlDefault,
 		ttlSOA:              ttlSOA,
 		apex:                defaultApex,
@@ -105,8 +105,8 @@ func newGateway() *Gateway {
 	}
 }
 
-func lookupResource(resource string) *resourceWithIndex {
-	for _, r := range orderedResources {
+func (gw *Gateway) lookupResource(resource string) *resourceWithIndex {
+	for _, r := range gw.Resources {
 		if r.name == resource {
 			return r
 		}

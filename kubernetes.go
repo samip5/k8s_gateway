@@ -56,7 +56,7 @@ type KubeController struct {
 	hasSynced   bool
 }
 
-func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gatewayClient.Clientset, filters ResourceFilters, configuredResources []*string) *KubeController {
+func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gatewayClient.Clientset, originalGateway *Gateway) *KubeController {
 	log.Infof("Building k8s_gateway controller")
 
 	ctrl := &KubeController{
@@ -79,8 +79,8 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 
 		routingResources := []string{"HTTPRoute", "TLSRoute", "GRPCRoute"}
 		for _, resourceName := range routingResources {
-			if slices.Contains(dereferenceStrings(configuredResources), resourceName) {
-				if resource := lookupResource(resourceName); resource != nil {
+			if slices.Contains(dereferenceStrings(originalGateway.ConfiguredResources), resourceName) {
+				if resource := originalGateway.lookupResource(resourceName); resource != nil {
 					switch resourceName {
 					case "HTTPRoute":
 						httpRouteController := cache.NewSharedIndexInformer(
@@ -92,7 +92,7 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 							defaultResyncPeriod,
 							cache.Indexers{httpRouteHostnameIndex: httpRouteHostnameIndexFunc},
 						)
-						resource.lookup = lookupHttpRouteIndex(httpRouteController, gatewayController, filters.gatewayClasses)
+						resource.lookup = lookupHttpRouteIndex(httpRouteController, gatewayController, originalGateway.resourceFilters.gatewayClasses)
 						ctrl.controllers = append(ctrl.controllers, httpRouteController)
 						log.Infof("HTTPRoute controller initialized")
 
@@ -106,7 +106,7 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 							defaultResyncPeriod,
 							cache.Indexers{tlsRouteHostnameIndex: tlsRouteHostnameIndexFunc},
 						)
-						resource.lookup = lookupTLSRouteIndex(tlsRouteController, gatewayController, filters.gatewayClasses)
+						resource.lookup = lookupTLSRouteIndex(tlsRouteController, gatewayController, originalGateway.resourceFilters.gatewayClasses)
 						ctrl.controllers = append(ctrl.controllers, tlsRouteController)
 						log.Infof("TLSRoute controller initialized")
 
@@ -120,7 +120,7 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 							defaultResyncPeriod,
 							cache.Indexers{grpcRouteHostnameIndex: grpcRouteHostnameIndexFunc},
 						)
-						resource.lookup = lookupGRPCRouteIndex(grpcRouteController, gatewayController, filters.gatewayClasses)
+						resource.lookup = lookupGRPCRouteIndex(grpcRouteController, gatewayController, originalGateway.resourceFilters.gatewayClasses)
 						ctrl.controllers = append(ctrl.controllers, grpcRouteController)
 						log.Infof("GRPCRoute controller initialized")
 					}
@@ -131,8 +131,8 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 
 	// Handle Ingress and Service explicitly
 	for _, resourceName := range []string{"Ingress", "Service"} {
-		if slices.Contains(dereferenceStrings(configuredResources), resourceName) {
-			if resource := lookupResource(resourceName); resource != nil {
+		if slices.Contains(dereferenceStrings(originalGateway.ConfiguredResources), resourceName) {
+			if resource := originalGateway.lookupResource(resourceName); resource != nil {
 				switch resourceName {
 				case "Ingress":
 					ingressController := cache.NewSharedIndexInformer(
@@ -144,7 +144,7 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 						defaultResyncPeriod,
 						cache.Indexers{ingressHostnameIndex: ingressHostnameIndexFunc},
 					)
-					resource.lookup = lookupIngressIndex(ingressController, filters.ingressClasses)
+					resource.lookup = lookupIngressIndex(ingressController, originalGateway.resourceFilters.ingressClasses)
 					ctrl.controllers = append(ctrl.controllers, ingressController)
 					log.Infof("Ingress controller initialized")
 
@@ -167,8 +167,8 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 	}
 
 	// Handle DNSEndpoints separately
-	if crdExists(apiextensionsClient, "dnsendpoints.externaldns.k8s.io") && slices.Contains(dereferenceStrings(configuredResources), "DNSEndpoint") {
-		if resource := lookupResource("DNSEndpoint"); resource != nil {
+	if crdExists(apiextensionsClient, "dnsendpoints.externaldns.k8s.io") && slices.Contains(dereferenceStrings(originalGateway.ConfiguredResources), "DNSEndpoint") {
+		if resource := originalGateway.lookupResource("DNSEndpoint"); resource != nil {
 			dnsEndpointController := cache.NewSharedIndexInformer(
 				&cache.ListWatch{
 					WatchFunc: dnsEndpointWatcher(ctx, core.NamespaceAll),
@@ -241,7 +241,7 @@ func (gw *Gateway) RunKubeController(ctx context.Context) error {
 		log.Warningf("crd %s not found. ignoring and continuing execution", externalDNSEndpointGroup)
 	}
 
-	gw.Controller = newKubeController(ctx, kubeClient, gwAPIClient, gw.resourceFilters, gw.ConfiguredResources)
+	gw.Controller = newKubeController(ctx, kubeClient, gwAPIClient, gw)
 	go gw.Controller.run()
 
 	return nil
