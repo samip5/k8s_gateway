@@ -8,7 +8,7 @@ This plugin relies on its own connection to the k8s API server and doesn't share
 
 `k8s_gateway` resolves Kubernetes resources with their external IP addresses based on zones specified in the configuration. This plugin will resolve the following type of resources:
 
-| Kind | Matching Against | External IPs are from | 
+| Kind | Matching Against | External IPs are from |
 | ---- | ---------------- | -------- |
 | HTTPRoute<sup>[1](#foot1)</sup> | all FQDNs from `spec.hostnames` matching configured zones | `gateway.status.addresses`<sup>[2](#foot2)</sup> |
 | TLSRoute<sup>[1](#foot1) | all FQDNs from `spec.hostnames` matching configured zones | `gateway.status.addresses`<sup>[2](#foot2)</sup> |
@@ -47,7 +47,7 @@ kubectl apply -f https://raw.githubusercontent.com/k8s-gateway/k8s_gateway/maste
 The only required configuration option are the zones that plugin should be authoritative for:
 
 ```
-k8s_gateway [ZONES...] 
+k8s_gateway [ZONES...]
 ```
 
 Additional configuration options can be used to further customize the behaviour of a plugin:
@@ -75,7 +75,7 @@ k8s_gateway [ZONES...]
 * `kubeconfig` can be used to connect to a remote Kubernetes cluster using a kubeconfig file. `CONTEXT` is optional, if not set, then the current context specified in kubeconfig will be used. It supports TLS, username and password, or token-based authentication.
 * `fallthrough` if zone matches and no record can be generated, pass request to the next plugin. If **[ZONES...]** is omitted, then fallthrough happens for all zones for which the plugin is authoritative. If specific zones are listed (for example `in-addr.arpa` and `ip6.arpa`), then only queries for those zones will be subject to fallthrough.
 
-Example: 
+Example:
 
 ```
 k8s_gateway example.com {
@@ -89,7 +89,7 @@ k8s_gateway example.com {
 
 ## Dual Nameserver Deployment
 
-Most of the time, deploying a single `k8s_gateway` instance is enough to satisfy most popular DNS resolvers. However, some of the stricter resolvers expect a zone to be available on at least two servers (RFC1034, section 4.1). In order to satisfy this requirement, a pair of `k8s_gateway` instances need to be deployed, each with its own unique loadBalancer IP. This way the zone NS record will point to a pair of glue records, hard-coded to these IPs. 
+Most of the time, deploying a single `k8s_gateway` instance is enough to satisfy most popular DNS resolvers. However, some of the stricter resolvers expect a zone to be available on at least two servers (RFC1034, section 4.1). In order to satisfy this requirement, a pair of `k8s_gateway` instances need to be deployed, each with its own unique loadBalancer IP. This way the zone NS record will point to a pair of glue records, hard-coded to these IPs.
 
 Another consideration is that in this case `k8s_gateway` instances need to know about their peers in order to provide consistent responses (at least the same set of nameservers). Configuration-wise this would require the following:
 

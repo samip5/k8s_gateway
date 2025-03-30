@@ -3,7 +3,7 @@ name: docker
 on:
   push:
     branches: [ master ]
-    
+
 jobs:
   docker:
     runs-on: ubuntu-latest
@@ -46,4 +46,3 @@ jobs:
           build-args: |
             VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
             REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
-
