@@ -43,12 +43,14 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/k8s-gateway/k8s_gateway
+            ghcr.io/${{ github.repository }}/k8s_gateway
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+          flavor: |
+            latest=auto
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -68,3 +70,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            LDFLAGS="-X main.pluginVersion=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}"
