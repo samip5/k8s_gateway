@@ -23,7 +23,7 @@ This plugin relies on its own connection to the k8s API server and doesn't share
 <a name="f3">3</a>: Only resolves service of type LoadBalancer</br>
 <a name="f4">4</a>: Requires external-dns CRDs</br>
 
-Currently only supports A-type queries, all other queries result in NODATA responses.
+Currently, supports A and AAAA-type queries, all other queries result in NODATA responses.
 
 This plugin is **NOT** supposed to be used for intra-cluster DNS resolution and does not contain the default upstream [kubernetes](https://coredns.io/plugins/kubernetes/) plugin.
 
@@ -66,7 +66,7 @@ k8s_gateway [ZONES...]
 }
 ```
 
-* `resources` a subset of supported Kubernetes resources to watch. By default all supported resources are monitored. Available options are `[ Ingress | Service | HTTPRoute | TLSRoute | GRPCRoute | DNSEndpoint ]`.
+* `resources` a subset of supported Kubernetes resources to watch. By default, all supported resources are monitored. Available options are `[ Ingress | Service | HTTPRoute | TLSRoute | GRPCRoute | DNSEndpoint ]`.
 * `ingressClasses` to filter `Ingress` resources by `ingressClassName` values. Watches all by default.
 * `gatewayClasses` to filter `Gateway` resources by `gatewayClassName` values. Watches all by default.
 * `ttl` can be used to override the default TTL value of 60 seconds.
@@ -150,15 +150,6 @@ For more details refer to [this CoreDNS doc](https://coredns.io/2017/07/25/compi
 
 
 ## Release
-
-### Plugin
-
-To cut a new plugin release the following is required:
-
-* Bump the app `pluginVersion` in `./cmd/coredns.go` and commit.
-* Tag the last commit with the save version number.
-* Bump the `appVersion` and `tag` in `./charts/k8s-gateway/Chart.yaml` and `./charts/k8s-gateway/values.yaml` respectively.
-* Run `make helm-update`
 
 ## Hack
 
