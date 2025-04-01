@@ -3,12 +3,12 @@ name: CI
 on:
   push:
     branches:
-      - 'master'
+      - "master"
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     branches:
-      - 'master'
+      - "master"
 
 jobs:
   # Linting is in a separate job because golangci-lint is quite slow when
@@ -22,9 +22,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: v1.64
+          version: v2.0.2
           args: --timeout=5m0s
 
   unit-test:
