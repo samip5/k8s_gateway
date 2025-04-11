@@ -375,7 +375,7 @@ var testServices = map[string]*core.Service{
 		},
 	},
 	"annotation-external-dns": {
-		ObjectMeta: meta.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "svc3",
 			Namespace: "ns1",
 			Annotations: map[string]string{
@@ -394,7 +394,7 @@ var testServices = map[string]*core.Service{
 		},
 	},
 	"annotation-external-dns-list1,annotation-external-dns-list2": {
-		ObjectMeta: meta.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "svc3",
 			Namespace: "ns1",
 			Annotations: map[string]string{
