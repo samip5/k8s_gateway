@@ -142,8 +142,11 @@ func TestController(t *testing.T) {
 
 	for index, testObj := range testServices {
 		found, _ := serviceHostnameIndexFunc(testObj)
-		if !isFound(index, found) {
-			t.Errorf("Service key %s not found in index: %v", index, found)
+		indices := strings.Split(index, ",")
+		for _, idx := range indices {
+			if !isFound(strings.TrimSpace(idx), found) {
+				t.Errorf("Service key %s not found in index: %v", idx, found)
+			}
 		}
 		ips := fetchServiceLoadBalancerIPs(testObj.Status.LoadBalancer.Ingress)
 		if len(ips) != 1 {
@@ -358,6 +361,44 @@ var testServices = map[string]*core.Service{
 			Namespace: "ns1",
 			Annotations: map[string]string{
 				"coredns.io/hostname": "annotation",
+			},
+		},
+		Spec: core.ServiceSpec{
+			Type: core.ServiceTypeLoadBalancer,
+		},
+		Status: core.ServiceStatus{
+			LoadBalancer: core.LoadBalancerStatus{
+				Ingress: []core.LoadBalancerIngress{
+					{IP: "192.0.0.3"},
+				},
+			},
+		},
+	},
+	"annotation-external-dns": {
+		ObjectMeta: meta.ObjectMeta{
+			Name:      "svc3",
+			Namespace: "ns1",
+			Annotations: map[string]string{
+				"external-dns.alpha.kubernetes.io/hostname": "annotation-external-dns",
+			},
+		},
+		Spec: core.ServiceSpec{
+			Type: core.ServiceTypeLoadBalancer,
+		},
+		Status: core.ServiceStatus{
+			LoadBalancer: core.LoadBalancerStatus{
+				Ingress: []core.LoadBalancerIngress{
+					{IP: "192.0.0.3"},
+				},
+			},
+		},
+	},
+	"annotation-external-dns-list1,annotation-external-dns-list2": {
+		ObjectMeta: meta.ObjectMeta{
+			Name:      "svc3",
+			Namespace: "ns1",
+			Annotations: map[string]string{
+				"external-dns.alpha.kubernetes.io/hostname": "annotation-external-dns-list1,annotation-external-dns-list2",
 			},
 		},
 		Spec: core.ServiceSpec{

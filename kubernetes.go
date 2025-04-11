@@ -452,15 +452,28 @@ func serviceHostnameIndexFunc(obj interface{}) ([]string, error) {
 	}
 
 	hostname := service.Name + "." + service.Namespace
+	hostnames := []string{}
 	if annotation, exists := checkServiceAnnotation(hostnameAnnotationKey, service); exists {
-		hostname = annotation
+		if checkDomainValid(annotation) {
+			hostnames = []string{annotation}
+			log.Debugf("Adding index %s for service %s", annotation, service.Name)
+		}
 	} else if annotation, exists := checkServiceAnnotation(externalDnsHostnameAnnotationKey, service); exists {
-		hostname = annotation
+		for _, hostname := range splitHostnameAnnotation(annotation) {
+			if checkDomainValid(hostname) {
+				hostnames = append(hostnames, hostname)
+				log.Debugf("Adding index %s for service %s", hostname, service.Name)
+			}
+		}
+	} else {
+		hostnames = []string{hostname}
 	}
 
-	log.Debugf("Adding index %s for service %s", hostname, service.Name)
+	return hostnames, nil
+}
 
-	return []string{hostname}, nil
+func splitHostnameAnnotation(annotation string) []string {
+	return strings.Split(strings.ReplaceAll(annotation, " ", ""), ",")
 }
 
 func dnsEndpointTargetIndexFunc(obj interface{}) ([]string, error) {
@@ -478,20 +491,23 @@ func dnsEndpointTargetIndexFunc(obj interface{}) ([]string, error) {
 
 func checkServiceAnnotation(annotation string, service *core.Service) (string, bool) {
 	if annotationValue, exists := service.Annotations[annotation]; exists {
-		// checking the hostname length limits
-		if _, ok := dns.IsDomainName(annotationValue); ok {
-			// checking RFC 1123 conformance (same as metadata labels)
-			if valid := isdns1123Hostname(annotationValue); valid {
-				return strings.ToLower(annotationValue), true
-			} else {
-				log.Infof("RFC 1123 conformance failed for FQDN: %s", annotationValue)
-			}
-		} else {
-			log.Infof("Invalid FQDN length: %s", annotationValue)
-		}
+		return strings.ToLower(annotationValue), true
 	}
 
 	return "", false
+}
+
+func checkDomainValid(domain string) bool {
+	if _, ok := dns.IsDomainName(domain); ok {
+		// checking RFC 1123 conformance (same as metadata labels)
+		if valid := isdns1123Hostname(domain); valid {
+			return true
+		}
+		log.Infof("RFC 1123 conformance failed for FQDN: %s", domain)
+	} else {
+		log.Infof("Invalid FQDN length: %s", domain)
+	}
+	return false
 }
 
 func lookupServiceIndex(ctrl cache.SharedIndexInformer) func([]string) []netip.Addr {
