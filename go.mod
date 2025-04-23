@@ -8,10 +8,10 @@ require (
 	github.com/coredns/caddy v1.1.2-0.20241029205200-8de985351a98
 	github.com/coredns/coredns v1.12.1
 	github.com/miekg/dns v1.1.65
-	k8s.io/api v0.32.3
-	k8s.io/apiextensions-apiserver v0.32.3
-	k8s.io/apimachinery v0.32.3
-	k8s.io/client-go v0.32.3
+	k8s.io/api v0.32.4
+	k8s.io/apiextensions-apiserver v0.32.4
+	k8s.io/apimachinery v0.32.4
+	k8s.io/client-go v0.32.4
 	sigs.k8s.io/external-dns v0.16.1
 	sigs.k8s.io/gateway-api v1.2.1
 )
