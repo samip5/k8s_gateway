@@ -2,59 +2,144 @@ name: docker
 
 on:
   push:
-    branches:
-      - master
+    branches: [master]
     paths:
       - cmd/**
       - go.*
       - Dockerfile
   pull_request:
-    branches:
-      - master
+    branches: [master]
   release:
-    types: ["published"]
+    types: [published]
 
 jobs:
-  docker:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          # - arch: amd64
+          #   os: ubuntu-24.04
+          #   platform: linux/amd64
+          - arch: arm64
+            os: ubuntu-24.04-arm
+            platform: linux/arm64
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
       packages: write
+    outputs:
+      json-tags: ${{ steps.meta.outputs.json }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/k8s-gateway/k8s_gateway
+          images: ghcr.io/k8s-gateway/k8s_gateway
+          tags: |
+            type=ref,event=branch,suffix=-${{ matrix.arch }}
+            type=ref,event=pr,suffix=-${{ matrix.arch }}
+            type=semver,pattern={{version}},suffix=-${{ matrix.arch }}
+            type=semver,pattern={{major}}.{{minor}},suffix=-${{ matrix.arch }}
+
+      - uses: docker/setup-buildx-action@v3
+        with:
+          platforms: ${{ matrix.platform }}
+
+      - name: Build image and export tarball
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          outputs: type=docker,dest=/tmp/image.tar
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+            TARGETPLATFORM=${{ matrix.platform }}
+
+      - name: Upload image tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.arch }}
+          path: /tmp/image.tar
+          retention-days: 1
+
+  manifest:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/k8s-gateway/k8s_gateway
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          platforms: linux/amd64,linux/arm64
 
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
+      - name: Download all image tarballs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: image-*
+          path: /tmp/images
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          ls -l /tmp/images/image-arm64/
+
+      - name: Load images into Docker and collect tags
+        id: load-images
+        run: |
+          tags_json="["
+
+          for dir in /tmp/images/image-*; do
+            tar="$dir/image.tar"
+            echo "Loading $tar"
+            if [[ -f "$tar" ]]; then
+              output=$(docker load < "$tar")
+              echo "$output"
+              image_tag=$(echo "$output" | awk -F': ' '{print $2}')
+              tags_json="${tags_json}\"$image_tag\","
+            else
+              echo "❌ Missing file: $tar"
+              exit 1
+            fi
+          done
+
+          tags_json="${tags_json%,}]"
+          echo "tags=$tags_json" >> $GITHUB_OUTPUT
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: "${{ github.actor }}"
-          password: "${{ secrets.GITHUB_TOKEN }}"
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
-            REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+      - name: Debug loaded tags
+        run: echo '${{ steps.load-images.outputs.tags_json }}' | jq .
+
+      - name: Create and push multi-arch manifest
+        run: |
+          TAGS=$(echo "${{ steps.meta.outputs.tags }}")
+
+          echo "Creating manifest for tags: $TAGS"
+          for TAG in $TAGS; do
+            echo "🔧 Creating manifest for $TAG"
+            cmd="docker manifest create $TAG"
+
+            for IMAGE in $(echo '${{ steps.load-images.outputs.tags_json }}' | jq -r '.[]'); do
+              echo "🧩 Adding $IMAGE to $TAG"
+              cmd="$cmd --amend $IMAGE"
+            done
+
+            echo "Running: $cmd"
+            eval "$cmd"
+            # docker manifest push "$TAG"
+          done
