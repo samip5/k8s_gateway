@@ -1,0 +1,45 @@
+---
+suite: Configmap
+
+tests:
+  - it: Should render ConfigMap with debug and dnsChallenge
+    set:
+      debug.enabled: true
+      domain: "example.com"
+      dnsChallenge.domain: "acme.example.com"
+      watchedResources:
+        - Service
+        - Ingress
+      ttl: 300
+    template: templates/configmap.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: data.Corefile
+          value: |-
+            .:1053 {
+                debug
+                k8s_gateway example.com {
+                  apex RELEASE-NAME-k8s-gateway.NAMESPACE
+                  ttl 300
+                  resources Service Ingress
+                }
+                log
+                errors
+                health {
+                  lameduck 5s
+                }
+                ready
+                prometheus 0.0.0.0:9153
+                forward . /etc/resolv.conf
+                loop
+                reload
+                loadbalance
+              }
+      - matchRegex:
+          path: data.Corefile
+          pattern: "k8s_gateway example\\.com"
+      - matchRegex:
+          path: data.Corefile
+          pattern: "resources Service Ingress"

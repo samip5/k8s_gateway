@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -46,7 +47,7 @@ data:
         {{- range .Values.zoneFiles }}
         file /etc/coredns/{{ .filename }}{{ if .domains }} {{ .domains }}{{ end }}
         {{- end }}
-    }
+      }
   {{- range .Values.zoneFiles }}
   {{ .filename }}: {{ toYaml .contents | indent 4 }}
   {{- end }}
