@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         chart: ${{ fromJSON(inputs.chartsToTest) }}
-        k8s_version: ["v1.32.4"]
+        k8s_version: ["v1.32.3"]
       fail-fast: false
     steps:
       - name: Checkout
@@ -70,7 +70,7 @@ jobs:
           kubectl taint --all=true nodes node.cloudprovider.kubernetes.io/uninitialized- || true
 
       - name: Run chart-testing (install)
-        run: ct install --config .ci/ct/ct.yaml --charts "charts/${{ matrix.chart }}"
+        run: ct install --config .ci/ct.yaml --charts "${{ matrix.chart }}"
 
   # Summarize matrix https://github.community/t/status-check-for-a-matrix-jobs/127354/7
   install_success:
@@ -112,8 +112,8 @@ jobs:
       - name: Run tests
         run: |
           helm plugin install https://github.com/helm-unittest/helm-unittest --version 0.8.1
-          helm dep update "charts/${{ matrix.chart }}"
-          helm unittest "charts/${{ matrix.chart }}"
+          helm dep update "${{ matrix.chart }}"
+          helm unittest "${{ matrix.chart }}"
 
   # Summarize matrix https://github.community/t/status-check-for-a-matrix-jobs/127354/7
   unittest_success:

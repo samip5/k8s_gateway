@@ -12,9 +12,6 @@ on:
       changedFiles:
         description: "A list of the files changed in this PR"
         value: ${{ jobs.pr-changes.outputs.changed-files }}
-      charts:
-        description: "A list of the charts changed in this PR"
-        value: ${{ jobs.pr-changes.outputs.changed-charts }}
 
 jobs:
   pr-metadata:
@@ -60,8 +57,3 @@ jobs:
         uses: bjw-s-labs/action-changed-files@b1144fc772fca235a50902c7bb6cc431cc7d8e27 # v0.3.2
         with:
           patterns: charts/**
-
-      # - name: Collect changed charts
-      #   uses: bjw-s-labs/helm-charts-actions/collect-charts@2025.2.0
-      #   id: changed-charts
-      #   if: contains(steps.changed-files.outputs.changed_files, 'charts/')

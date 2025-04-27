@@ -17,7 +17,7 @@ jobs:
     needs:
       - pr-metadata
     with:
-      modifiedFiles: ${{ needs.pr-metadata.outputs.charts }}
+      modifiedFiles: ${{ needs.pr-metadata.outputs.changedFiles }}
 
   charts-lint:
     uses: ./.github/workflows/charts-lint.yaml
@@ -25,7 +25,7 @@ jobs:
       - pr-metadata
     with:
       checkoutCommit: ${{ github.sha }}
-      chartsToLint: "charts/k8s-gateway"
+      chartsToLint: '["charts/k8s-gateway"]'
       isRenovatePR: ${{ needs.pr-metadata.outputs.isRenovatePR }}
 
   charts-test:
@@ -34,4 +34,4 @@ jobs:
       - pr-metadata
     with:
       checkoutCommit: ${{ github.sha }}
-      chartsToTest: "charts/k8s-gateway"
+      chartsToTest: '["charts/k8s-gateway"]'
