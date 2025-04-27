@@ -103,6 +103,10 @@ debug:
 
 secure: true
 
+podSecurityContext: {}
+
+securityContext: {}
+
 zoneFiles: []
 #    - filename: example.db
 #      # Optional
