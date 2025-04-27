@@ -134,18 +134,8 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	zone = qname[len(qname)-len(zone):] // maintain case of original query
 	state.Zone = zone
 
-	// Indexer cache can be built from `name.namespace` without zone
-	zonelessQuery := stripDomain(qname, zone)
-
-	// Computing keys to look up in cache
-	var indexKeys []string
-	strippedQName := stripClosingDot(state.QName())
-	if len(zonelessQuery) != 0 && zonelessQuery != strippedQName {
-		indexKeys = []string{strippedQName, zonelessQuery}
-	} else {
-		indexKeys = []string{strippedQName}
-	}
-	log.Debugf("computed Index Keys %v", indexKeys)
+	indexKeySets := gw.getQueryIndexKeySets(qname, zone)
+	log.Debugf("computed Index Keys sets %v", indexKeySets)
 
 	if !gw.Controller.HasSynced() {
 		// TODO maybe there's a better way to do this? e.g. return an error back to the client?
@@ -165,16 +155,7 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		}
 	}
 
-	var addrs []netip.Addr
-
-	// Iterate over supported resources and lookup DNS queries
-	// Stop once we've found at least one match
-	for _, resource := range gw.Resources {
-		addrs = resource.lookup(indexKeys)
-		if len(addrs) > 0 {
-			break
-		}
-	}
+	addrs := gw.getMatchingAddresses(indexKeySets)
 	log.Debugf("computed response addresses %v", addrs)
 
 	// Fall through if no host matches
@@ -265,6 +246,71 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	}
 
 	return dns.RcodeSuccess, nil
+}
+
+// Computes keys to look up in cache
+func (gw *Gateway) getQueryIndexKeys(qName, zone string) []string {
+	zonelessQuery := stripDomain(qName, zone)
+
+	var indexKeys []string
+	strippedQName := stripClosingDot(qName)
+	if len(zonelessQuery) != 0 && zonelessQuery != strippedQName {
+		indexKeys = []string{strippedQName, zonelessQuery}
+	} else {
+		indexKeys = []string{strippedQName}
+	}
+
+	return indexKeys
+}
+
+// Returns all sets of index keys that should be checked, in order, for a given
+// query name and zone. The first set of keys is the most specific, and the last
+// set is the most general. The first set of keys that is in the indexer should
+// be used to look up the query.
+func (gw *Gateway) getQueryIndexKeySets(qName, zone string) [][]string {
+	specificIndexKeys := gw.getQueryIndexKeys(qName, zone)
+
+	wildcardQName := gw.toWildcardQName(qName, zone)
+	if wildcardQName == "" {
+		return [][]string{specificIndexKeys}
+	}
+
+	wildcardIndexKeys := gw.getQueryIndexKeys(wildcardQName, zone)
+	return [][]string{specificIndexKeys, wildcardIndexKeys}
+}
+
+// Converts a query name to a wildcard query name by replacing the first
+// label with a wildcard. The wildcard query name is used to look up
+// wildcard records in the indexer. If the query name is empty or
+// contains no labels, an empty string is returned.
+func (gw *Gateway) toWildcardQName(qName, zone string) string {
+	// Indexer cache can be built from `name.namespace` without zone
+	zonelessQuery := stripDomain(qName, zone)
+	parts := strings.Split(zonelessQuery, ".")
+	if len(parts) == 0 {
+		return ""
+	}
+
+	parts[0] = "*"
+	parts = append(parts, zone)
+	return strings.Join(parts, ".")
+}
+
+// Gets the set of addresses associated with the first set of index keys
+// that is in the indexer.
+func (gw *Gateway) getMatchingAddresses(indexKeySets [][]string) []netip.Addr {
+	// Iterate over supported resources and lookup DNS queries
+	// Stop once we've found at least one match
+	for _, indexKeys := range indexKeySets {
+		for _, resource := range gw.Resources {
+			addrs := resource.lookup(indexKeys)
+			if len(addrs) > 0 {
+				return addrs
+			}
+		}
+	}
+
+	return nil
 }
 
 // Name implements the Handler interface.

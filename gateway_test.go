@@ -226,6 +226,20 @@ var tests = []test.Case{
 			test.A("dns1.kube-system.example.com.   60  IN  A   192.0.1.53"),
 		},
 	},
+	// Lookup that relies on a wildcard | Test 18
+	{
+		Qname: "not-explicitly-defined-label.wildcard.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{
+			test.A("not-explicitly-defined-label.wildcard.example.com. 60  IN  A   192.0.0.6"),
+		},
+	},
+	// Lookup with a matching wildcard but a more specific entry | Test 19
+	{
+		Qname: "specific-subdomain.wildcard.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{
+			test.A("specific-subdomain.wildcard.example.com. 60  IN  A   192.0.0.7"),
+		},
+	},
 }
 
 var testsFallthrough = []FallthroughCase{
@@ -271,11 +285,13 @@ func testServiceLookup(keys []string) (results []netip.Addr) {
 }
 
 var testIngressIndexes = map[string][]netip.Addr{
-	"domain.example.com":    {netip.MustParseAddr("192.0.0.1")},
-	"svc2.ns1.example.com":  {netip.MustParseAddr("192.0.0.2")},
-	"example.com":           {netip.MustParseAddr("192.0.0.3")},
-	"shadow.example.com":    {netip.MustParseAddr("192.0.0.4")},
-	"shadow-vs.example.com": {netip.MustParseAddr("192.0.0.5")},
+	"domain.example.com":                      {netip.MustParseAddr("192.0.0.1")},
+	"svc2.ns1.example.com":                    {netip.MustParseAddr("192.0.0.2")},
+	"example.com":                             {netip.MustParseAddr("192.0.0.3")},
+	"shadow.example.com":                      {netip.MustParseAddr("192.0.0.4")},
+	"shadow-vs.example.com":                   {netip.MustParseAddr("192.0.0.5")},
+	"*.wildcard.example.com":                  {netip.MustParseAddr("192.0.0.6")},
+	"specific-subdomain.wildcard.example.com": {netip.MustParseAddr("192.0.0.7")},
 }
 
 func testIngressLookup(keys []string) (results []netip.Addr) {
