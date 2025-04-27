@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         chart: ${{ fromJSON(inputs.chartsToTest) }}
-        k8s_version: ["v1.29.1"]
+        k8s_version: ["v1.32.4"]
       fail-fast: false
     steps:
       - name: Checkout
@@ -113,7 +113,7 @@ jobs:
         run: |
           helm plugin install https://github.com/helm-unittest/helm-unittest --version 0.8.1
           helm dep update "charts/${{ matrix.chart }}"
-          helm unittest -f "tests/**/*_test.yaml" "charts/${{ matrix.chart }}"
+          helm unittest "charts/${{ matrix.chart }}"
 
   # Summarize matrix https://github.community/t/status-check-for-a-matrix-jobs/127354/7
   unittest_success:
