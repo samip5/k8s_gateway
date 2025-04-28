@@ -36,6 +36,19 @@ jobs:
           fetch-depth: 0
           ref: ${{ inputs.checkoutCommit }}
 
+      - name: Verify chart version
+        uses: bjw-s/helm-charts-actions/verify-chart-version@2025.2.0
+        id: verify-chart-version
+        with:
+          chart: "${{ matrix.chart }}"
+
+      - name: Verify chart changelog
+        uses: bjw-s/helm-charts-actions/verify-chart-changelog@2025.2.0
+        if: inputs.isRenovatePR != 'true'
+        id: verify-chart-changelog
+        with:
+          chart: "${{ matrix.chart }}"
+
       - name: Install Kubernetes tools
         uses: yokawasa/action-setup-kube-tools@v0.11.2
         with:
