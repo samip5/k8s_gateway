@@ -178,3 +178,12 @@ false
 false
   {{- end -}}
 {{- end }}
+
+{{- define "k8s-gateway.securityContext" -}}
+  {{- $securityContext := .Values.securityContext -}}
+  {{- if .Values.secure -}}
+    {{- $_ := set $securityContext "runAsUser" 1000 -}}
+  {{- end -}}
+
+  {{- $securityContext | toYaml -}}
+{{- end -}}

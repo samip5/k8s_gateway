@@ -6,3 +6,4 @@ tilt_modules
 .vscode
 .idea
 .history
+__snapshot__/
