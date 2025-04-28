@@ -8,13 +8,14 @@ on:
         type: string
       isRenovatePR:
         required: true
-        default: 'false'
+        default: "false"
         type: string
       chartsToLint:
         description: >
           A JSON encoded array of charts to lint
         required: true
         type: string
+        default: "[]"
 
 env:
   HELM_VERSION: 3.17.2
@@ -36,17 +37,17 @@ jobs:
           ref: ${{ inputs.checkoutCommit }}
 
       - name: Verify chart version
-        uses: bjw-s/helm-charts-actions/verify-chart-version@main
+        uses: bjw-s/helm-charts-actions/verify-chart-version@2025.2.0
         id: verify-chart-version
         with:
-          chart: "charts/${{ matrix.chart }}"
+          chart: "${{ matrix.chart }}"
 
       - name: Verify chart changelog
-        uses: bjw-s/helm-charts-actions/verify-chart-changelog@main
+        uses: bjw-s/helm-charts-actions/verify-chart-changelog@2025.2.0
         if: inputs.isRenovatePR != 'true'
         id: verify-chart-changelog
         with:
-          chart: "charts/${{ matrix.chart }}"
+          chart: "${{ matrix.chart }}"
 
       - name: Install Kubernetes tools
         uses: yokawasa/action-setup-kube-tools@v0.11.2
@@ -59,7 +60,7 @@ jobs:
         uses: helm/chart-testing-action@v2.7.0
 
       - name: Run chart-testing (install)
-        run: ct lint --config .ci/ct/ct.yaml --charts "charts/${{ matrix.chart }}"
+        run: ct lint --config .ci/ct.yaml --charts "${{ matrix.chart }}"
 
   # Summarize matrix https://github.community/t/status-check-for-a-matrix-jobs/127354/7
   lint_success:
