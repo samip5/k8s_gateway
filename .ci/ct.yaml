@@ -1,4 +1,3 @@
-# chart-yaml-schema: .ci/ct/chart_schema.yaml
 lint-conf: .ci/lintconf.yaml
 
 remote: origin
