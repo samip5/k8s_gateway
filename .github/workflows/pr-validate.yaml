@@ -21,6 +21,7 @@ jobs:
 
   charts-lint:
     uses: ./.github/workflows/charts-lint.yaml
+    if: contains(needs.pr-metadata.outputs.changedFiles, 'charts/')
     needs:
       - pr-metadata
     with:
@@ -30,6 +31,7 @@ jobs:
 
   charts-test:
     uses: ./.github/workflows/charts-test.yaml
+    if: contains(needs.pr-metadata.outputs.changedFiles, 'charts/')
     needs:
       - pr-metadata
     with:
