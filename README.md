@@ -142,7 +142,7 @@ $ ./coredns -plugins | grep k8s_gateway
 ```
 $ git clone https://github.com/k8s-gateway/k8s_gateway.git
 $ cd k8s_gateway
-$ go build cmd/coredns.go
+$ go build
 $ ./coredns -plugins | grep k8s_external
 ```
 

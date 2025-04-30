@@ -377,3 +377,5 @@ func stripClosingDot(s string) string {
 	}
 	return s
 }
+
+func Name() string { return "k8s_gateway" }

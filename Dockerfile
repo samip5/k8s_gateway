@@ -13,7 +13,7 @@ COPY go.sum go.sum
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 
-COPY cmd/ cmd/
+COPY plugin/ plugin/
 COPY *.go ./
 
 ARG TARGETOS
@@ -24,7 +24,7 @@ ENV CGO_ENABLED=0 \
     GOARCH=$TARGETARCH \
     GOOS=$TARGETOS
 
-RUN go build -ldflags "-s -w -X github.com/coredns/coredns/coremain.GitCommit=${REVISION} -X main.pluginVersion=${VERSION}" -o coredns cmd/coredns.go
+RUN go build -ldflags "-s -w -X github.com/coredns/coredns/coremain.GitCommit=${REVISION} -X main.pluginVersion=${VERSION}" -o coredns
 
 # Update CA Certs
 FROM docker.io/library/alpine:3.21 AS certs

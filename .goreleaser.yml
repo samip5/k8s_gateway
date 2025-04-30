@@ -3,7 +3,7 @@ before:
     - go mod download
 builds:
   - id: coredns
-    main: ./cmd/coredns.go
+    main: ./main.go
     binary: coredns
     ldflags:
       - -X main.pluginVersion={{.Version}}

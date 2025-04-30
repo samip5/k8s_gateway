@@ -8,9 +8,9 @@ load('ext://helm_remote', 'helm_remote')
 IMG = 'localhost:5000/coredns'
 
 def binary():
-    return "CGO_ENABLED=0  GOOS=linux GOARCH=amd64 GO111MODULE=on go build cmd/coredns.go"
+    return "CGO_ENABLED=0  GOOS=linux GOARCH=amd64 GO111MODULE=on go build main.go"
 
-local_resource('recompile', binary(), deps=['cmd', 'gateway.go', 'kubernetes.go', 'setup.go', 'apex.go'])
+local_resource('recompile', binary(), deps=['main.go', 'gateway.go', 'kubernetes.go', 'setup.go', 'apex.go'])
 
 
 docker_build_with_restart(IMG, '.',
@@ -49,7 +49,7 @@ helm_remote('ingress-nginx',
 # Backend deployment for testing
 k8s_yaml('./test/backend.yml')
 
-k8s_yaml('https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/experimental-install.yaml')
+k8s_yaml('https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml')
 
 k8s_kind('HTTPRoute', api_version='gateway.networking.k8s.io/v1')
 k8s_kind('TLSRoute', api_version='gateway.networking.k8s.io/v1alpha2')
