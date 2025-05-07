@@ -7,7 +7,7 @@ toolchain go1.24.3
 require (
 	github.com/coredns/caddy v1.1.2-0.20241029205200-8de985351a98
 	github.com/coredns/coredns v1.12.1
-	github.com/miekg/dns v1.1.65
+	github.com/miekg/dns v1.1.66
 	k8s.io/api v0.32.4
 	k8s.io/apiextensions-apiserver v0.32.4
 	k8s.io/apimachinery v0.32.4
@@ -177,7 +177,7 @@ require (
 	golang.org/x/term v0.31.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
-	golang.org/x/tools v0.31.0 // indirect
+	golang.org/x/tools v0.32.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/api v0.227.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
