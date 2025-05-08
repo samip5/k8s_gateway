@@ -36,3 +36,20 @@ tests:
             containerPort: 1053
             name: dns-tcp
             protocol: TCP
+  - it: Should add imagePullSecrets if specified
+    set:
+      domain: example.com
+      imagePullSecrets:
+        - name: my-image-credential
+      image:
+        registry: docker.io
+        repository: coredns/coredns
+        tag: 1.8.6
+      watchedResources:
+        - Service
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.imagePullSecrets
+          value:
+            - name: my-image-credential

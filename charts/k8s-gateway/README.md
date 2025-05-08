@@ -23,6 +23,7 @@ The following table lists the configurable parameters of the k8s_gateway chart a
 | `image.repository`               | Image repository                                                                          | `k8s-gateway/k8s_gateway` |
 | `image.tag`                      | Image tag                                                                                 | `latest`              |
 | `image.pullPolicy`               | Image pull policy                                                                         | `Always`              |
+| `imagePullSecrets`               | Image pull secrets                                                                        | `[]`                  |
 | `podSecurityContext`             | Set Security Context for Pod                                                              | `{}`                  |
 | `securityContext`                | Set Security Context for the container                                                    | `{}`                  |
 | `nodeSelector`                   | Node labels for pod assignment                                                            | `{}`                  |
