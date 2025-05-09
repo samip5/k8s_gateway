@@ -3,11 +3,28 @@ entries:
   k8s-gateway:
   - annotations:
       artifacthub.io/changes: |
+        - kind: added
+          description: added ability to set image pull secrets
+    apiVersion: v2
+    appVersion: 1.2.0
+    created: "2025-05-09T05:02:25.161297597Z"
+    description: A Helm chart for the k8s_gateway CoreDNS plugin
+    digest: f2b131d58e8de0c3ec1b24ccbcc83e406448d69798e7a566d4ad9e8774a03813
+    maintainers:
+    - name: samip5
+      url: https://github.com/samip5
+    name: k8s-gateway
+    type: application
+    urls:
+    - https://k8s-gateway.github.io/k8s_gateway/k8s-gateway-3.2.0.tgz
+    version: 3.2.0
+  - annotations:
+      artifacthub.io/changes: |
         - kind: changed
           description: Set default value for watchedResources to ["Ingress", "Service"]
     apiVersion: v2
     appVersion: 1.2.0
-    created: "2025-05-08T15:23:45.845410334Z"
+    created: "2025-05-09T05:02:25.160751992Z"
     description: A Helm chart for the k8s_gateway CoreDNS plugin
     digest: d8c3063468befd5f1eec65890bfc35551e92074630c457acc3d6afc7d6e2d313
     maintainers:
@@ -24,7 +41,7 @@ entries:
           description: Updated app version
     apiVersion: v2
     appVersion: 1.2.0
-    created: "2025-05-08T15:23:45.844915325Z"
+    created: "2025-05-09T05:02:25.160262943Z"
     description: A Helm chart for the k8s_gateway CoreDNS plugin
     digest: d8b90786871cd3ec42969af1a545164888fafc6575b50a5939cea86f45ee8ddf
     maintainers:
@@ -45,7 +62,7 @@ entries:
           description: fixed indentation issue in configmap.yaml
     apiVersion: v2
     appVersion: 1.1.1
-    created: "2025-05-08T15:23:45.844423783Z"
+    created: "2025-05-09T05:02:25.159713862Z"
     description: A Helm chart for the k8s_gateway CoreDNS plugin
     digest: 3ff7546f5d22ac16b03cadf1c35ebc3f04243548e550c04e6282a039c314bd89
     maintainers:
@@ -58,7 +75,7 @@ entries:
     version: 3.1.2
   - apiVersion: v2
     appVersion: 1.1.1
-    created: "2025-05-08T15:23:45.843916341Z"
+    created: "2025-05-09T05:02:25.15881658Z"
     description: A Helm chart for the k8s_gateway CoreDNS plugin
     digest: d59d768f911dcce1e3a54879ae655a2d1ca3a6d9671971abd1c778b44a3d075d
     maintainers:
@@ -71,7 +88,7 @@ entries:
     version: 3.1.1
   - apiVersion: v2
     appVersion: 1.0.3
-    created: "2025-05-08T15:23:45.843492015Z"
+    created: "2025-05-09T05:02:25.157805721Z"
     description: A Helm chart for the k8s_gateway CoreDNS plugin
     digest: caae74a23ef6d9389c3620e5a9e2f0b00a64533278e7ca908f5ed1d8d48b4469
     maintainers:
@@ -84,7 +101,7 @@ entries:
     version: 3.1.0
   - apiVersion: v2
     appVersion: 1.0.3
-    created: "2025-05-08T15:23:45.843066807Z"
+    created: "2025-05-09T05:02:25.157382925Z"
     description: A Helm chart for the k8s_gateway CoreDNS plugin
     digest: 35f69a932613049a0c4d56d9c7d2147dff54444ac0eac1a7335b827479e6a403
     maintainers:
@@ -97,7 +114,7 @@ entries:
     version: 3.0.2
   - apiVersion: v2
     appVersion: 1.0.1
-    created: "2025-05-08T15:23:45.84252465Z"
+    created: "2025-05-09T05:02:25.156954448Z"
     description: A Helm chart for the k8s_gateway CoreDNS plugin
     digest: 3685eb04ffc01e3725d5660b7933a1f222fded3799e3fe7cbe8cba9035ab0955
     maintainers:
@@ -110,7 +127,7 @@ entries:
     version: 3.0.1
   - apiVersion: v2
     appVersion: 1.0.0
-    created: "2025-05-08T15:23:45.841248613Z"
+    created: "2025-05-09T05:02:25.156301494Z"
     description: A Helm chart for the k8s_gateway CoreDNS plugin
     digest: 10020f32490ab07664fff4006cf48ab0bcb1df8ed101bd0c4a802099c9d171db
     maintainers:
@@ -121,4 +138,4 @@ entries:
     urls:
     - https://k8s-gateway.github.io/k8s_gateway/k8s-gateway-3.0.0.tgz
     version: 3.0.0
-generated: "2025-05-08T15:23:45.840679505Z"
+generated: "2025-05-09T05:02:25.155705325Z"
