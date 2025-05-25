@@ -64,7 +64,18 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 		gwClient: gw,
 	}
 
-	if crdExists(apiextensionsClient, "gatewayclasses.gateway.networking.k8s.io") {
+	configuredResources := dereferenceStrings(originalGateway.ConfiguredResources)
+	routingResources := []string{"HTTPRoute", "TLSRoute", "GRPCRoute"}
+
+	shouldInitGateway := false
+	for _, r := range routingResources {
+		if slices.Contains(configuredResources, r) {
+			shouldInitGateway = true
+			break
+		}
+	}
+
+	if crdExists(apiextensionsClient, "gatewayclasses.gateway.networking.k8s.io") && shouldInitGateway {
 		gatewayController := cache.NewSharedIndexInformer(
 			&cache.ListWatch{
 				ListFunc:  gatewayLister(ctx, ctrl.gwClient, core.NamespaceAll),
@@ -77,59 +88,61 @@ func newKubeController(ctx context.Context, c *kubernetes.Clientset, gw *gateway
 		ctrl.controllers = append(ctrl.controllers, gatewayController)
 		log.Infof("GatewayAPI controller initialized")
 
-		routingResources := []string{"HTTPRoute", "TLSRoute", "GRPCRoute"}
 		for _, resourceName := range routingResources {
-			if slices.Contains(dereferenceStrings(originalGateway.ConfiguredResources), resourceName) {
-				if resource := originalGateway.lookupResource(resourceName); resource != nil {
-					switch resourceName {
-					case "HTTPRoute":
-						httpRouteController := cache.NewSharedIndexInformer(
-							&cache.ListWatch{
-								ListFunc:  httpRouteLister(ctx, ctrl.gwClient, core.NamespaceAll),
-								WatchFunc: httpRouteWatcher(ctx, ctrl.gwClient, core.NamespaceAll),
-							},
-							&gatewayapi_v1.HTTPRoute{},
-							defaultResyncPeriod,
-							cache.Indexers{httpRouteHostnameIndex: httpRouteHostnameIndexFunc},
-						)
-						resource.lookup = lookupHttpRouteIndex(httpRouteController, gatewayController, originalGateway.resourceFilters.gatewayClasses)
-						ctrl.controllers = append(ctrl.controllers, httpRouteController)
-						log.Infof("HTTPRoute controller initialized")
+			if !slices.Contains(configuredResources, resourceName) {
+				continue
+			}
+			resource := originalGateway.lookupResource(resourceName)
+			if resource == nil {
+				continue
+			}
 
-					case "TLSRoute":
-						tlsRouteController := cache.NewSharedIndexInformer(
-							&cache.ListWatch{
-								ListFunc:  tlsRouteLister(ctx, ctrl.gwClient, core.NamespaceAll),
-								WatchFunc: tlsRouteWatcher(ctx, ctrl.gwClient, core.NamespaceAll),
-							},
-							&gatewayapi_v1alpha2.TLSRoute{},
-							defaultResyncPeriod,
-							cache.Indexers{tlsRouteHostnameIndex: tlsRouteHostnameIndexFunc},
-						)
-						resource.lookup = lookupTLSRouteIndex(tlsRouteController, gatewayController, originalGateway.resourceFilters.gatewayClasses)
-						ctrl.controllers = append(ctrl.controllers, tlsRouteController)
-						log.Infof("TLSRoute controller initialized")
+			switch resourceName {
+			case "HTTPRoute":
+				httpRouteController := cache.NewSharedIndexInformer(
+					&cache.ListWatch{
+						ListFunc:  httpRouteLister(ctx, ctrl.gwClient, core.NamespaceAll),
+						WatchFunc: httpRouteWatcher(ctx, ctrl.gwClient, core.NamespaceAll),
+					},
+					&gatewayapi_v1.HTTPRoute{},
+					defaultResyncPeriod,
+					cache.Indexers{httpRouteHostnameIndex: httpRouteHostnameIndexFunc},
+				)
+				resource.lookup = lookupHttpRouteIndex(httpRouteController, gatewayController, originalGateway.resourceFilters.gatewayClasses)
+				ctrl.controllers = append(ctrl.controllers, httpRouteController)
+				log.Infof("HTTPRoute controller initialized")
 
-					case "GRPCRoute":
-						grpcRouteController := cache.NewSharedIndexInformer(
-							&cache.ListWatch{
-								ListFunc:  grpcRouteLister(ctx, ctrl.gwClient, core.NamespaceAll),
-								WatchFunc: grpcRouteWatcher(ctx, ctrl.gwClient, core.NamespaceAll),
-							},
-							&gatewayapi_v1.GRPCRoute{},
-							defaultResyncPeriod,
-							cache.Indexers{grpcRouteHostnameIndex: grpcRouteHostnameIndexFunc},
-						)
-						resource.lookup = lookupGRPCRouteIndex(grpcRouteController, gatewayController, originalGateway.resourceFilters.gatewayClasses)
-						ctrl.controllers = append(ctrl.controllers, grpcRouteController)
-						log.Infof("GRPCRoute controller initialized")
-					}
-				}
+			case "TLSRoute":
+				tlsRouteController := cache.NewSharedIndexInformer(
+					&cache.ListWatch{
+						ListFunc:  tlsRouteLister(ctx, ctrl.gwClient, core.NamespaceAll),
+						WatchFunc: tlsRouteWatcher(ctx, ctrl.gwClient, core.NamespaceAll),
+					},
+					&gatewayapi_v1alpha2.TLSRoute{},
+					defaultResyncPeriod,
+					cache.Indexers{tlsRouteHostnameIndex: tlsRouteHostnameIndexFunc},
+				)
+				resource.lookup = lookupTLSRouteIndex(tlsRouteController, gatewayController, originalGateway.resourceFilters.gatewayClasses)
+				ctrl.controllers = append(ctrl.controllers, tlsRouteController)
+				log.Infof("TLSRoute controller initialized")
+
+			case "GRPCRoute":
+				grpcRouteController := cache.NewSharedIndexInformer(
+					&cache.ListWatch{
+						ListFunc:  grpcRouteLister(ctx, ctrl.gwClient, core.NamespaceAll),
+						WatchFunc: grpcRouteWatcher(ctx, ctrl.gwClient, core.NamespaceAll),
+					},
+					&gatewayapi_v1.GRPCRoute{},
+					defaultResyncPeriod,
+					cache.Indexers{grpcRouteHostnameIndex: grpcRouteHostnameIndexFunc},
+				)
+				resource.lookup = lookupGRPCRouteIndex(grpcRouteController, gatewayController, originalGateway.resourceFilters.gatewayClasses)
+				ctrl.controllers = append(ctrl.controllers, grpcRouteController)
+				log.Infof("GRPCRoute controller initialized")
 			}
 		}
 	}
 
-	// Handle Ingress and Service explicitly
 	for _, resourceName := range []string{"Ingress", "Service"} {
 		if slices.Contains(dereferenceStrings(originalGateway.ConfiguredResources), resourceName) {
 			if resource := originalGateway.lookupResource(resourceName); resource != nil {
