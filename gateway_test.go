@@ -25,6 +25,17 @@ type Fallen struct {
 	error
 }
 
+func LookupResultFromAddr(cname *string, addr netip.Addr) LookupResult {
+	var cnameTarget string
+	if cname != nil {
+		cnameTarget = *cname
+	}
+	return LookupResult{
+		CNAMETarget: cnameTarget,
+		Addresses:   []netip.Addr{addr},
+	}
+}
+
 func TestLookup(t *testing.T) {
 	ctrl := &KubeController{hasSynced: true}
 
@@ -270,55 +281,55 @@ var testsFallthrough = []FallthroughCase{
 	},
 }
 
-var testServiceIndexes = map[string][]netip.Addr{
-	"svc1.ns1":         {netip.MustParseAddr("192.0.1.1"), netip.MustParseAddr("fd12:3456:789a:1::")},
-	"svc2.ns1":         {netip.MustParseAddr("192.0.1.2")},
+var testServiceIndexes = map[string][]LookupResult{
+	"svc1.ns1":         {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.1.1")), LookupResultFromAddr(nil, netip.MustParseAddr("fd12:3456:789a:1::"))},
+	"svc2.ns1":         {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.1.2"))},
 	"svc3.ns1":         {},
-	"dns1.kube-system": {netip.MustParseAddr("192.0.1.53")},
+	"dns1.kube-system": {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.1.53"))},
 }
 
-func testServiceLookup(keys []string) (results []netip.Addr) {
+func testServiceLookup(keys []string) (results []LookupResult) {
 	for _, key := range keys {
 		results = append(results, testServiceIndexes[strings.ToLower(key)]...)
 	}
 	return results
 }
 
-var testIngressIndexes = map[string][]netip.Addr{
-	"domain.example.com":                      {netip.MustParseAddr("192.0.0.1")},
-	"svc2.ns1.example.com":                    {netip.MustParseAddr("192.0.0.2")},
-	"example.com":                             {netip.MustParseAddr("192.0.0.3")},
-	"shadow.example.com":                      {netip.MustParseAddr("192.0.0.4")},
-	"shadow-vs.example.com":                   {netip.MustParseAddr("192.0.0.5")},
-	"*.wildcard.example.com":                  {netip.MustParseAddr("192.0.0.6")},
-	"specific-subdomain.wildcard.example.com": {netip.MustParseAddr("192.0.0.7")},
+var testIngressIndexes = map[string][]LookupResult{
+	"domain.example.com":                      {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.1"))},
+	"svc2.ns1.example.com":                    {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.2"))},
+	"example.com":                             {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.3"))},
+	"shadow.example.com":                      {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.4"))},
+	"shadow-vs.example.com":                   {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.5"))},
+	"*.wildcard.example.com":                  {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.6"))},
+	"specific-subdomain.wildcard.example.com": {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.7"))},
 }
 
-func testIngressLookup(keys []string) (results []netip.Addr) {
+func testIngressLookup(keys []string) (results []LookupResult) {
 	for _, key := range keys {
 		results = append(results, testIngressIndexes[strings.ToLower(key)]...)
 	}
 	return results
 }
 
-var testRouteIndexes = map[string][]netip.Addr{
-	"domain.gw.example.com": {netip.MustParseAddr("192.0.2.1")},
-	"shadow.example.com":    {netip.MustParseAddr("192.0.2.4")},
+var testRouteIndexes = map[string][]LookupResult{
+	"domain.gw.example.com": {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.2.1"))},
+	"shadow.example.com":    {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.2.4"))},
 }
 
-func testRouteLookup(keys []string) (results []netip.Addr) {
+func testRouteLookup(keys []string) (results []LookupResult) {
 	for _, key := range keys {
 		results = append(results, testRouteIndexes[strings.ToLower(key)]...)
 	}
 	return results
 }
 
-var testDNSEndpointIndexes = map[string][]netip.Addr{
-	"domain.endpoint.example.com": {netip.MustParseAddr("192.0.4.1")},
-	"endpoint.example.com":        {netip.MustParseAddr("192.0.4.4")},
+var testDNSEndpointIndexes = map[string][]LookupResult{
+	"domain.endpoint.example.com": {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.4.1"))},
+	"endpoint.example.com":        {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.4.4"))},
 }
 
-func testDNSEndpointLookup(keys []string) (results []netip.Addr) {
+func testDNSEndpointLookup(keys []string) (results []LookupResult) {
 	for _, key := range keys {
 		results = append(results, testDNSEndpointIndexes[strings.ToLower(key)]...)
 	}

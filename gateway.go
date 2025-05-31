@@ -13,7 +13,12 @@ import (
 	"github.com/miekg/dns"
 )
 
-type lookupFunc func(indexKeys []string) []netip.Addr
+type LookupResult struct {
+	CNAMETarget string
+	Addresses   []netip.Addr
+}
+
+type lookupFunc func(indexKeys []string) []LookupResult
 
 type resourceWithIndex struct {
 	name   string
@@ -30,7 +35,7 @@ var staticResources = []*resourceWithIndex{
 	{name: "DNSEndpoint", lookup: noop},
 }
 
-var noop lookupFunc = func([]string) (result []netip.Addr) { return }
+var noop lookupFunc = func([]string) (result []LookupResult) { return }
 
 var (
 	ttlDefault        = uint32(60)
@@ -155,7 +160,7 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		}
 	}
 
-	addrs := gw.getMatchingAddresses(indexKeySets)
+	cname, addrs := gw.getMatchingRecords(indexKeySets)
 	log.Debugf("computed response addresses %v", addrs)
 
 	// Fall through if no host matches
@@ -170,7 +175,7 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	var ipv6Addrs []netip.Addr
 
 	for _, addr := range addrs {
-		if addr.Is4() {
+		if addr.Is4() || addr.Is6() {
 			ipv4Addrs = append(ipv4Addrs, addr)
 		}
 		if addr.Is6() {
@@ -179,48 +184,52 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	}
 
 	switch state.QType() {
-	case dns.TypeA:
-
-		if len(ipv4Addrs) == 0 {
-
-			if !isRootZoneQuery {
-				// No match, return NXDOMAIN
-				m.Rcode = dns.RcodeNameError
+	case dns.TypeCNAME:
+		if cname != "" {
+			m.Answer = []dns.RR{
+				&dns.CNAME{
+					Hdr: dns.RR_Header{
+						Name:   state.Name(),
+						Rrtype: dns.TypeCNAME,
+						Class:  dns.ClassINET,
+						Ttl:    gw.ttlLow,
+					},
+					Target: dns.Fqdn(cname),
+				},
 			}
-
-			m.Ns = []dns.RR{gw.soa(state)}
-
 		} else {
-
-			m.Answer = gw.A(state.Name(), ipv4Addrs)
+			m.Rcode = dns.RcodeNameError
+			m.Ns = []dns.RR{gw.soa(state)}
+		}
+	case dns.TypeA:
+		if len(addrs) > 0 {
+			m.Answer = gw.A(state.Name(), addrs)
+		} else if cname != "" {
+			m.Answer = []dns.RR{
+				&dns.CNAME{
+					Hdr: dns.RR_Header{
+						Name:   state.Name(),
+						Rrtype: dns.TypeCNAME,
+						Class:  dns.ClassINET,
+						Ttl:    gw.ttlLow,
+					},
+					Target: dns.Fqdn(cname),
+				},
+			}
+		} else {
+			m.Rcode = dns.RcodeNameError
+			m.Ns = []dns.RR{gw.soa(state)}
 		}
 	case dns.TypeAAAA:
-
-		if len(ipv6Addrs) == 0 {
-
-			if !isRootZoneQuery {
-				// No match, return NXDOMAIN
-				m.Rcode = dns.RcodeNameError
-			}
-
-			// as per rfc4074 #3
-			if len(ipv4Addrs) > 0 {
-				m.Rcode = dns.RcodeSuccess
-			}
-
-			m.Ns = []dns.RR{gw.soa(state)}
-
+		if len(addrs) > 0 {
+			m.Answer = gw.AAAA(state.Name(), addrs)
 		} else {
-
-			m.Answer = gw.AAAA(state.Name(), ipv6Addrs)
+			m.Rcode = dns.RcodeNameError
+			m.Ns = []dns.RR{gw.soa(state)}
 		}
-
 	case dns.TypeSOA:
-
 		m.Answer = []dns.RR{gw.soa(state)}
-
 	case dns.TypeNS:
-
 		if isRootZoneQuery {
 			m.Answer = gw.nameservers(state)
 
@@ -232,7 +241,6 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		} else {
 			m.Ns = []dns.RR{gw.soa(state)}
 		}
-
 	default:
 		m.Ns = []dns.RR{gw.soa(state)}
 	}
@@ -296,21 +304,21 @@ func (gw *Gateway) toWildcardQName(qName, zone string) string {
 	return strings.Join(parts, ".")
 }
 
-// Gets the set of addresses associated with the first set of index keys
-// that is in the indexer.
-func (gw *Gateway) getMatchingAddresses(indexKeySets [][]string) []netip.Addr {
-	// Iterate over supported resources and lookup DNS queries
-	// Stop once we've found at least one match
+func (gw *Gateway) getMatchingRecords(indexKeySets [][]string) (string, []netip.Addr) {
 	for _, indexKeys := range indexKeySets {
 		for _, resource := range gw.Resources {
-			addrs := resource.lookup(indexKeys)
-			if len(addrs) > 0 {
-				return addrs
+			results := resource.lookup(indexKeys)
+			for _, res := range results {
+				if res.CNAMETarget != "" {
+					return res.CNAMETarget, nil
+				}
+				if len(res.Addresses) > 0 {
+					return "", res.Addresses
+				}
 			}
 		}
 	}
-
-	return nil
+	return "", nil
 }
 
 // Name implements the Handler interface.
@@ -342,7 +350,7 @@ func (gw *Gateway) AAAA(name string, results []netip.Addr) (records []dns.RR) {
 // SelfAddress returns the address of the local k8s_gateway service
 func (gw *Gateway) SelfAddress(state request.Request) (records []dns.RR) {
 
-	var addrs1, addrs2 []netip.Addr
+	var addrs1, addrs2 []LookupResult
 	for _, resource := range gw.Resources {
 		results := resource.lookup([]string{gw.apex})
 		if len(results) > 0 {
@@ -354,26 +362,31 @@ func (gw *Gateway) SelfAddress(state request.Request) (records []dns.RR) {
 		}
 	}
 
-	records = append(records, gw.A(gw.apex+"."+state.Zone, addrs1)...)
+	records = append(records, gw.A(gw.apex+"."+state.Zone, flattenAddresses(addrs1))...)
 
 	if state.QType() == dns.TypeNS {
-		records = append(records, gw.A(gw.secondNS+"."+state.Zone, addrs2)...)
+		records = append(records, gw.A(gw.secondNS+"."+state.Zone, flattenAddresses(addrs2))...)
 	}
 
 	return records
-	//return records
 }
 
-// Strips the zone from FQDN and return a hostname
 func stripDomain(qname, zone string) string {
 	hostname := qname[:len(qname)-len(zone)]
 	return stripClosingDot(hostname)
 }
 
-// Strips the closing dot unless it's "."
 func stripClosingDot(s string) string {
 	if len(s) > 1 {
 		return strings.TrimSuffix(s, ".")
 	}
 	return s
+}
+
+func flattenAddresses(results []LookupResult) []netip.Addr {
+	var addrs []netip.Addr
+	for _, r := range results {
+		addrs = append(addrs, r.Addresses...)
+	}
+	return addrs
 }
