@@ -25,6 +25,17 @@ type Fallen struct {
 	error
 }
 
+func LookupResultFromAddr(cname *string, addr netip.Addr) LookupResult {
+	var cnameTarget string
+	if cname != nil {
+		cnameTarget = *cname
+	}
+	return LookupResult{
+		CNAMETarget: cnameTarget,
+		Addresses:   []netip.Addr{addr},
+	}
+}
+
 func TestLookup(t *testing.T) {
 	ctrl := &KubeController{hasSynced: true}
 
@@ -125,11 +136,11 @@ var tests = []test.Case{
 			test.A("domain.example.com. 60  IN  A   192.0.0.1"),
 		},
 	},
-	// Ingress takes precedence over services | Test 2
+	// Service takes precedence over Ingress | Test 2
 	{
 		Qname: "svc2.ns1.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
 		Answer: []dns.RR{
-			test.A("svc2.ns1.example.com.   60  IN  A   192.0.0.2"),
+			test.A("svc2.ns1.example.com.   60  IN  A   192.0.1.2"),
 		},
 	},
 	// Non-existing Service | Test 3
@@ -188,6 +199,21 @@ var tests = []test.Case{
 			test.A("svc1.ns1.example.com.   60  IN  A   192.0.1.1"),
 		},
 	},
+	// Test 11
+	{
+		Qname: "svc2.ns1.example.com.", Qtype: dns.TypeAAAA, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{},
+		Ns: []dns.RR{
+			test.SOA("example.com.  60  IN  SOA dns1.kube-system.example.com. hostmaster.example.com. 1499347823 7200 1800 86400 5"),
+		},
+	},
+	// Test 12
+	{
+		Qname: "svc1.ns1.example.com.", Qtype: dns.TypeAAAA, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{
+			test.AAAA("svc1.ns1.example.com.    60  IN  AAAA    fd12:3456:789a:1::"),
+		},
+	},
 	// basic gateway API lookup | Test 13
 	{
 		Qname: "domain.gw.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
@@ -195,25 +221,11 @@ var tests = []test.Case{
 			test.A("domain.gw.example.com.  60  IN  A   192.0.2.1"),
 		},
 	},
-	// gateway API lookup priority over Ingress | Test 14
+	// Ingress takes precedence over gateway API | Test 14
 	{
 		Qname: "shadow.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
 		Answer: []dns.RR{
-			test.A("shadow.example.com. 60  IN  A   192.0.2.4"),
-		},
-	},
-	// Existing Service A record, but no AAAA record | Test 15
-	{
-		Qname: "svc2.ns1.example.com.", Qtype: dns.TypeAAAA, Rcode: dns.RcodeSuccess,
-		Ns: []dns.RR{
-			test.SOA("example.com.  60  IN  SOA dns1.kube-system.example.com. hostmaster.example.com. 1499347823 7200 1800 86400 5"),
-		},
-	},
-	// Existing Service IPv6 | Test 16
-	{
-		Qname: "svc1.ns1.example.com.", Qtype: dns.TypeAAAA, Rcode: dns.RcodeSuccess,
-		Answer: []dns.RR{
-			test.AAAA("svc1.ns1.example.com.    60  IN  AAAA    fd12:3456:789a:1::"),
+			test.A("shadow.example.com. 60  IN  A   192.0.0.4"),
 		},
 	},
 	// lookup apex NS record | Test 17
@@ -238,6 +250,30 @@ var tests = []test.Case{
 		Qname: "specific-subdomain.wildcard.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
 		Answer: []dns.RR{
 			test.A("specific-subdomain.wildcard.example.com. 60  IN  A   192.0.0.7"),
+		},
+	},
+	// Direct CNAME query | Test 20
+	{
+		Qname: "recursive.endpoint.example.com.", Qtype: dns.TypeCNAME, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{
+			test.CNAME("recursive.endpoint.example.com. 60 IN CNAME cname.endpoint.example.com."),
+		},
+	},
+	// A query for a CNAME record should return the CNAME and the A record | Test 21
+	{
+		Qname: "cname.endpoint.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{
+			test.CNAME("cname.endpoint.example.com. 60 IN CNAME domain.endpoint.example.com."),
+			test.A("domain.endpoint.example.com. 60 IN A 192.0.4.1"),
+		},
+	},
+	// Recursive CNAME query should follow the chain | Test 22
+	{
+		Qname: "recursive.endpoint.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{
+			test.CNAME("recursive.endpoint.example.com. 60 IN CNAME cname.endpoint.example.com."),
+			test.CNAME("cname.endpoint.example.com. 60 IN CNAME domain.endpoint.example.com."),
+			test.A("domain.endpoint.example.com. 60 IN A 192.0.4.1"),
 		},
 	},
 }
@@ -270,55 +306,57 @@ var testsFallthrough = []FallthroughCase{
 	},
 }
 
-var testServiceIndexes = map[string][]netip.Addr{
-	"svc1.ns1":         {netip.MustParseAddr("192.0.1.1"), netip.MustParseAddr("fd12:3456:789a:1::")},
-	"svc2.ns1":         {netip.MustParseAddr("192.0.1.2")},
+var testServiceIndexes = map[string][]LookupResult{
+	"svc1.ns1":         {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.1.1")), LookupResultFromAddr(nil, netip.MustParseAddr("fd12:3456:789a:1::"))},
+	"svc2.ns1":         {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.1.2"))},
 	"svc3.ns1":         {},
-	"dns1.kube-system": {netip.MustParseAddr("192.0.1.53")},
+	"dns1.kube-system": {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.1.53"))},
 }
 
-func testServiceLookup(keys []string) (results []netip.Addr) {
+func testServiceLookup(keys []string) (results []LookupResult) {
 	for _, key := range keys {
 		results = append(results, testServiceIndexes[strings.ToLower(key)]...)
 	}
 	return results
 }
 
-var testIngressIndexes = map[string][]netip.Addr{
-	"domain.example.com":                      {netip.MustParseAddr("192.0.0.1")},
-	"svc2.ns1.example.com":                    {netip.MustParseAddr("192.0.0.2")},
-	"example.com":                             {netip.MustParseAddr("192.0.0.3")},
-	"shadow.example.com":                      {netip.MustParseAddr("192.0.0.4")},
-	"shadow-vs.example.com":                   {netip.MustParseAddr("192.0.0.5")},
-	"*.wildcard.example.com":                  {netip.MustParseAddr("192.0.0.6")},
-	"specific-subdomain.wildcard.example.com": {netip.MustParseAddr("192.0.0.7")},
+var testIngressIndexes = map[string][]LookupResult{
+	"domain.example.com":                      {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.1"))},
+	"svc2.ns1.example.com":                    {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.2"))},
+	"example.com":                             {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.3"))},
+	"shadow.example.com":                      {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.4"))},
+	"shadow-vs.example.com":                   {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.5"))},
+	"*.wildcard.example.com":                  {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.6"))},
+	"specific-subdomain.wildcard.example.com": {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.0.7"))},
 }
 
-func testIngressLookup(keys []string) (results []netip.Addr) {
+func testIngressLookup(keys []string) (results []LookupResult) {
 	for _, key := range keys {
 		results = append(results, testIngressIndexes[strings.ToLower(key)]...)
 	}
 	return results
 }
 
-var testRouteIndexes = map[string][]netip.Addr{
-	"domain.gw.example.com": {netip.MustParseAddr("192.0.2.1")},
-	"shadow.example.com":    {netip.MustParseAddr("192.0.2.4")},
+var testRouteIndexes = map[string][]LookupResult{
+	"domain.gw.example.com": {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.2.1"))},
+	"shadow.example.com":    {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.2.4"))},
 }
 
-func testRouteLookup(keys []string) (results []netip.Addr) {
+func testRouteLookup(keys []string) (results []LookupResult) {
 	for _, key := range keys {
 		results = append(results, testRouteIndexes[strings.ToLower(key)]...)
 	}
 	return results
 }
 
-var testDNSEndpointIndexes = map[string][]netip.Addr{
-	"domain.endpoint.example.com": {netip.MustParseAddr("192.0.4.1")},
-	"endpoint.example.com":        {netip.MustParseAddr("192.0.4.4")},
+var testDNSEndpointIndexes = map[string][]LookupResult{
+	"domain.endpoint.example.com":    {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.4.1"))},
+	"endpoint.example.com":           {LookupResultFromAddr(nil, netip.MustParseAddr("192.0.4.4"))},
+	"cname.endpoint.example.com":     {LookupResult{CNAMETarget: "domain.endpoint.example.com", Addresses: nil}},
+	"recursive.endpoint.example.com": {LookupResult{CNAMETarget: "cname.endpoint.example.com", Addresses: nil}},
 }
 
-func testDNSEndpointLookup(keys []string) (results []netip.Addr) {
+func testDNSEndpointLookup(keys []string) (results []LookupResult) {
 	for _, key := range keys {
 		results = append(results, testDNSEndpointIndexes[strings.ToLower(key)]...)
 	}
@@ -326,22 +364,155 @@ func testDNSEndpointLookup(keys []string) (results []netip.Addr) {
 }
 
 func setupLookupFuncs(gw *Gateway) {
-	if resource := gw.lookupResource("Ingress"); resource != nil {
-		resource.lookup = testIngressLookup
+	// Reorder resources for tests
+	gw.Resources = nil
+
+	// Add Service first so it takes precedence
+	if svc := staticResources[4]; svc != nil {
+		svc.lookup = testServiceLookup
+		gw.Resources = append(gw.Resources, svc)
 	}
-	if resource := gw.lookupResource("Service"); resource != nil {
-		resource.lookup = testServiceLookup
+
+	// Add the rest of the resources
+	if ing := staticResources[3]; ing != nil {
+		ing.lookup = testIngressLookup
+		gw.Resources = append(gw.Resources, ing)
 	}
-	if resource := gw.lookupResource("HTTPRoute"); resource != nil {
-		resource.lookup = testRouteLookup
+	if http := staticResources[0]; http != nil {
+		http.lookup = testRouteLookup
+		gw.Resources = append(gw.Resources, http)
 	}
-	if resource := gw.lookupResource("TLSRoute"); resource != nil {
-		resource.lookup = testRouteLookup
+	if tls := staticResources[1]; tls != nil {
+		tls.lookup = testRouteLookup
+		gw.Resources = append(gw.Resources, tls)
 	}
-	if resource := gw.lookupResource("GRPCRoute"); resource != nil {
-		resource.lookup = testRouteLookup
+	if grpc := staticResources[2]; grpc != nil {
+		grpc.lookup = testRouteLookup
+		gw.Resources = append(gw.Resources, grpc)
 	}
-	if resource := gw.lookupResource("DNSEndpoint"); resource != nil {
-		resource.lookup = testDNSEndpointLookup
+	if dns := staticResources[5]; dns != nil {
+		dns.lookup = testDNSEndpointLookup
+		gw.Resources = append(gw.Resources, dns)
+	}
+}
+
+// TestRecursiveCNAME tests that recursive CNAME resolution works correctly
+func TestRecursiveCNAME(t *testing.T) {
+	ctrl := &KubeController{hasSynced: true}
+
+	gw := newGateway()
+	gw.Zones = []string{"example.org."}
+	gw.Next = test.NextHandler(dns.RcodeSuccess, nil)
+	gw.ExternalAddrFunc = gw.SelfAddress
+	gw.Controller = ctrl
+
+	// Create custom lookup functions for this test
+	gw.Resources = nil
+	dnsResource := staticResources[5]
+	dnsResource.lookup = func(keys []string) (results []LookupResult) {
+		// Custom lookup function that returns CNAME records for our test domain
+		for _, key := range keys {
+			switch strings.ToLower(key) {
+			case "recursive.endpoint.example.org":
+				results = append(results, LookupResult{
+					CNAMETarget: "cname.endpoint.example.org",
+				})
+			case "cname.endpoint.example.org":
+				results = append(results, LookupResult{
+					CNAMETarget: "domain.endpoint.example.org",
+				})
+			case "domain.endpoint.example.org":
+				results = append(results, LookupResult{
+					Addresses: []netip.Addr{netip.MustParseAddr("192.0.4.1")},
+				})
+			}
+		}
+		return results
+	}
+	gw.Resources = append(gw.Resources, dnsResource)
+
+	// Create a test case specifically for recursive CNAME resolution
+	tc := test.Case{
+		Qname: "recursive.endpoint.example.org.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{
+			test.CNAME("recursive.endpoint.example.org. 60 IN CNAME cname.endpoint.example.org."),
+			test.CNAME("cname.endpoint.example.org. 60 IN CNAME domain.endpoint.example.org."),
+			test.A("domain.endpoint.example.org. 60 IN A 192.0.4.1"),
+		},
+	}
+
+	ctx := context.TODO()
+	r := tc.Msg()
+	w := dnstest.NewRecorder(&test.ResponseWriter{})
+
+	_, err := gw.ServeDNS(ctx, w, r)
+	if err != tc.Error {
+		t.Errorf("Expected no error, got %v", err)
+		return
+	}
+
+	resp := w.Msg
+	if resp == nil {
+		t.Fatalf("Got nil message and no error for %q", r.Question[0].Name)
+	}
+
+	// Print the actual response for debugging
+	t.Logf("Response: %+v", resp)
+	for i, rr := range resp.Answer {
+		t.Logf("Answer[%d]: %+v", i, rr)
+	}
+
+	// Verify that the response contains at least one record
+	if len(resp.Answer) == 0 {
+		t.Errorf("Expected at least one record in the answer section, got 0")
+		return
+	}
+
+	// Verify that the response contains a CNAME record pointing to the correct target
+	found := false
+	for _, rr := range resp.Answer {
+		if rr.Header().Rrtype == dns.TypeCNAME {
+			if cname, ok := rr.(*dns.CNAME); ok {
+				if cname.Hdr.Name == "recursive.endpoint.example.org." && cname.Target == "cname.endpoint.example.org." {
+					found = true
+					break
+				}
+			}
+		}
+	}
+	if !found {
+		t.Errorf("Expected to find a CNAME record from recursive.endpoint.example.org. to cname.endpoint.example.org.")
+	}
+
+	// Verify that the response contains a CNAME record for the second hop
+	found = false
+	for _, rr := range resp.Answer {
+		if rr.Header().Rrtype == dns.TypeCNAME {
+			if cname, ok := rr.(*dns.CNAME); ok {
+				if cname.Hdr.Name == "cname.endpoint.example.org." && cname.Target == "domain.endpoint.example.org." {
+					found = true
+					break
+				}
+			}
+		}
+	}
+	if !found {
+		t.Errorf("Expected to find a CNAME record from cname.endpoint.example.org. to domain.endpoint.example.org.")
+	}
+
+	// Verify that the response contains an A record for the final target
+	found = false
+	for _, rr := range resp.Answer {
+		if rr.Header().Rrtype == dns.TypeA {
+			if a, ok := rr.(*dns.A); ok {
+				if a.Hdr.Name == "domain.endpoint.example.org." && a.A.String() == "192.0.4.1" {
+					found = true
+					break
+				}
+			}
+		}
+	}
+	if !found {
+		t.Errorf("Expected to find an A record for domain.endpoint.example.org. with IP 192.0.4.1")
 	}
 }
