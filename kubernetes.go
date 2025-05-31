@@ -510,8 +510,8 @@ func checkDomainValid(domain string) bool {
 	return false
 }
 
-func lookupServiceIndex(ctrl cache.SharedIndexInformer) func([]string) []netip.Addr {
-	return func(indexKeys []string) (result []netip.Addr) {
+func lookupServiceIndex(ctrl cache.SharedIndexInformer) func([]string) LookupResult {
+	return func(indexKeys []string) (result LookupResult) {
 		var objs []interface{}
 		for _, key := range indexKeys {
 			obj, _ := ctrl.GetIndexer().ByIndex(serviceHostnameIndex, strings.ToLower(key))
@@ -523,20 +523,20 @@ func lookupServiceIndex(ctrl cache.SharedIndexInformer) func([]string) []netip.A
 
 			if len(service.Spec.ExternalIPs) > 0 {
 				for _, ip := range service.Spec.ExternalIPs {
-					result = append(result, netip.MustParseAddr(ip))
+					result.Addrs = append(result.Addrs, netip.MustParseAddr(ip))
 				}
 				// in case externalIPs are defined, ignoring status field completely
 				return
 			}
 
-			result = append(result, fetchServiceLoadBalancerIPs(service.Status.LoadBalancer.Ingress)...)
+			result.Addrs = append(result.Addrs, fetchServiceLoadBalancerIPs(service.Status.LoadBalancer.Ingress)...)
 		}
 		return
 	}
 }
 
-func lookupHttpRouteIndex(http, gw cache.SharedIndexInformer, gwclasses []string) func([]string) []netip.Addr {
-	return func(indexKeys []string) (result []netip.Addr) {
+func lookupHttpRouteIndex(http, gw cache.SharedIndexInformer, gwclasses []string) func([]string) LookupResult {
+	return func(indexKeys []string) (result LookupResult) {
 		var objs []interface{}
 		for _, key := range indexKeys {
 			obj, _ := http.GetIndexer().ByIndex(httpRouteHostnameIndex, strings.ToLower(key))
@@ -546,14 +546,14 @@ func lookupHttpRouteIndex(http, gw cache.SharedIndexInformer, gwclasses []string
 
 		for _, obj := range objs {
 			httpRoute, _ := obj.(*gatewayapi_v1.HTTPRoute)
-			result = append(result, lookupGateways(gw, httpRoute.Spec.ParentRefs, httpRoute.Namespace, gwclasses)...)
+			result.Addrs = append(result.Addrs, lookupGateways(gw, httpRoute.Spec.ParentRefs, httpRoute.Namespace, gwclasses)...)
 		}
 		return
 	}
 }
 
-func lookupTLSRouteIndex(tls, gw cache.SharedIndexInformer, gwclasses []string) func([]string) []netip.Addr {
-	return func(indexKeys []string) (result []netip.Addr) {
+func lookupTLSRouteIndex(tls, gw cache.SharedIndexInformer, gwclasses []string) func([]string) LookupResult {
+	return func(indexKeys []string) (result LookupResult) {
 		var objs []interface{}
 		for _, key := range indexKeys {
 			obj, _ := tls.GetIndexer().ByIndex(tlsRouteHostnameIndex, strings.ToLower(key))
@@ -563,14 +563,14 @@ func lookupTLSRouteIndex(tls, gw cache.SharedIndexInformer, gwclasses []string) 
 
 		for _, obj := range objs {
 			tlsRoute, _ := obj.(*gatewayapi_v1alpha2.TLSRoute)
-			result = append(result, lookupGateways(gw, tlsRoute.Spec.ParentRefs, tlsRoute.Namespace, gwclasses)...)
+			result.Addrs = append(result.Addrs, lookupGateways(gw, tlsRoute.Spec.ParentRefs, tlsRoute.Namespace, gwclasses)...)
 		}
 		return
 	}
 }
 
-func lookupGRPCRouteIndex(grpc, gw cache.SharedIndexInformer, gwclasses []string) func([]string) []netip.Addr {
-	return func(indexKeys []string) (result []netip.Addr) {
+func lookupGRPCRouteIndex(grpc, gw cache.SharedIndexInformer, gwclasses []string) func([]string) LookupResult {
+	return func(indexKeys []string) (result LookupResult) {
 		var objs []interface{}
 		for _, key := range indexKeys {
 			obj, _ := grpc.GetIndexer().ByIndex(grpcRouteHostnameIndex, strings.ToLower(key))
@@ -580,7 +580,7 @@ func lookupGRPCRouteIndex(grpc, gw cache.SharedIndexInformer, gwclasses []string
 
 		for _, obj := range objs {
 			grpcRoute, _ := obj.(*gatewayapi_v1.GRPCRoute)
-			result = append(result, lookupGateways(gw, grpcRoute.Spec.ParentRefs, grpcRoute.Namespace, gwclasses)...)
+			result.Addrs = append(result.Addrs, lookupGateways(gw, grpcRoute.Spec.ParentRefs, grpcRoute.Namespace, gwclasses)...)
 		}
 		return
 	}
@@ -611,8 +611,8 @@ func lookupGateways(gw cache.SharedIndexInformer, refs []gatewayapi_v1.ParentRef
 	return
 }
 
-func lookupIngressIndex(ctrl cache.SharedIndexInformer, ingclasses []string) func([]string) []netip.Addr {
-	return func(indexKeys []string) (result []netip.Addr) {
+func lookupIngressIndex(ctrl cache.SharedIndexInformer, ingclasses []string) func([]string) LookupResult {
+	return func(indexKeys []string) (result LookupResult) {
 		var objs []interface{}
 		for _, key := range indexKeys {
 			obj, _ := ctrl.GetIndexer().ByIndex(ingressHostnameIndex, strings.ToLower(key))
@@ -627,15 +627,15 @@ func lookupIngressIndex(ctrl cache.SharedIndexInformer, ingclasses []string) fun
 				continue
 			}
 
-			result = append(result, fetchIngressLoadBalancerIPs(ingress.Status.LoadBalancer.Ingress)...)
+			result.Addrs = append(result.Addrs, fetchIngressLoadBalancerIPs(ingress.Status.LoadBalancer.Ingress)...)
 		}
 
 		return
 	}
 }
 
-func lookupDNSEndpoint(ctrl cache.SharedIndexInformer) func([]string) (results []netip.Addr) {
-	return func(indexKeys []string) (result []netip.Addr) {
+func lookupDNSEndpoint(ctrl cache.SharedIndexInformer) func([]string) (result LookupResult) {
+	return func(indexKeys []string) (result LookupResult) {
 		var objs []interface{}
 		for _, key := range indexKeys {
 			obj, _ := ctrl.GetIndexer().ByIndex(externalDNSHostnameIndex, strings.ToLower(key))
@@ -652,7 +652,12 @@ func lookupDNSEndpoint(ctrl cache.SharedIndexInformer) func([]string) (results [
 						if err != nil {
 							continue
 						}
-						result = append(result, addr)
+						result.Addrs = append(result.Addrs, addr)
+					} else if endpoint.RecordType == "CNAME" {
+						// For CNAME records, store the target
+						result.HasCNAME = true
+						result.CNAMETarget = target
+						return result // Return immediately when we find a CNAME
 					}
 				}
 			}

@@ -13,7 +13,14 @@ import (
 	"github.com/miekg/dns"
 )
 
-type lookupFunc func(indexKeys []string) []netip.Addr
+// LookupResult holds the result of a DNS lookup, which can be either IP addresses or a CNAME target
+type LookupResult struct {
+	Addrs       []netip.Addr
+	CNAMETarget string
+	HasCNAME    bool
+}
+
+type lookupFunc func(indexKeys []string) LookupResult
 
 type resourceWithIndex struct {
 	name   string
@@ -30,7 +37,7 @@ var staticResources = []*resourceWithIndex{
 	{name: "DNSEndpoint", lookup: noop},
 }
 
-var noop lookupFunc = func([]string) (result []netip.Addr) { return }
+var noop lookupFunc = func([]string) (result LookupResult) { return }
 
 var (
 	ttlDefault        = uint32(60)
@@ -165,20 +172,24 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		}
 	}
 
-	var addrs []netip.Addr
+	var result LookupResult
+	var hasCNAME bool
+	var cnameTarget string
 
 	// Iterate over supported resources and lookup DNS queries
 	// Stop once we've found at least one match
 	for _, resource := range gw.Resources {
-		addrs = resource.lookup(indexKeys)
-		if len(addrs) > 0 {
+		result = resource.lookup(indexKeys)
+		if len(result.Addrs) > 0 || result.HasCNAME {
+			hasCNAME = result.HasCNAME
+			cnameTarget = result.CNAMETarget
 			break
 		}
 	}
-	log.Debugf("computed response addresses %v", addrs)
+	log.Debugf("computed response addresses %v, CNAME: %v, target: %s", result.Addrs, hasCNAME, cnameTarget)
 
 	// Fall through if no host matches
-	if len(addrs) == 0 && gw.Fall.Through(qname) {
+	if len(result.Addrs) == 0 && !hasCNAME && gw.Fall.Through(qname) {
 		return plugin.NextOrFailure(gw.Name(), gw.Next, ctx, w, r)
 	}
 
@@ -188,7 +199,7 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	var ipv4Addrs []netip.Addr
 	var ipv6Addrs []netip.Addr
 
-	for _, addr := range addrs {
+	for _, addr := range result.Addrs {
 		if addr.Is4() {
 			ipv4Addrs = append(ipv4Addrs, addr)
 		}
@@ -199,24 +210,56 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 
 	switch state.QType() {
 	case dns.TypeA:
+		if hasCNAME {
+			// If we have a CNAME, we need to resolve it recursively
+			m.Answer = append(m.Answer, &dns.CNAME{
+				Hdr:    dns.RR_Header{Name: state.Name(), Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: gw.ttlLow},
+				Target: cnameTarget,
+			})
 
-		if len(ipv4Addrs) == 0 {
-
+			// Resolve the CNAME target recursively
+			resolvedAddrs := gw.resolveCNAME(cnameTarget, state.Zone)
+			if len(resolvedAddrs) > 0 {
+				for _, addr := range resolvedAddrs {
+					if addr.Is4() {
+						m.Answer = append(m.Answer, &dns.A{
+							Hdr: dns.RR_Header{Name: state.Name(), Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: gw.ttlLow},
+							A:   net.ParseIP(addr.String()),
+						})
+					}
+				}
+			}
+		} else if len(ipv4Addrs) == 0 {
 			if !isRootZoneQuery {
 				// No match, return NXDOMAIN
 				m.Rcode = dns.RcodeNameError
 			}
 
 			m.Ns = []dns.RR{gw.soa(state)}
-
 		} else {
-
 			m.Answer = gw.A(state.Name(), ipv4Addrs)
 		}
 	case dns.TypeAAAA:
+		if hasCNAME {
+			// If we have a CNAME, we need to resolve it recursively
+			m.Answer = append(m.Answer, &dns.CNAME{
+				Hdr:    dns.RR_Header{Name: state.Name(), Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: gw.ttlLow},
+				Target: cnameTarget,
+			})
 
-		if len(ipv6Addrs) == 0 {
-
+			// Resolve the CNAME target recursively
+			resolvedAddrs := gw.resolveCNAME(cnameTarget, state.Zone)
+			if len(resolvedAddrs) > 0 {
+				for _, addr := range resolvedAddrs {
+					if addr.Is6() {
+						m.Answer = append(m.Answer, &dns.AAAA{
+							Hdr:  dns.RR_Header{Name: state.Name(), Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: gw.ttlLow},
+							AAAA: net.ParseIP(addr.String()),
+						})
+					}
+				}
+			}
+		} else if len(ipv6Addrs) == 0 {
 			if !isRootZoneQuery {
 				// No match, return NXDOMAIN
 				m.Rcode = dns.RcodeNameError
@@ -228,9 +271,7 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 			}
 
 			m.Ns = []dns.RR{gw.soa(state)}
-
 		} else {
-
 			m.Answer = gw.AAAA(state.Name(), ipv6Addrs)
 		}
 
@@ -249,6 +290,18 @@ func (gw *Gateway) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 				m.Extra = append(m.Extra, rr)
 			}
 		} else {
+			m.Ns = []dns.RR{gw.soa(state)}
+		}
+
+	case dns.TypeCNAME:
+		if hasCNAME {
+			// If we have a CNAME, return it
+			m.Answer = append(m.Answer, gw.CNAME(state.Name(), cnameTarget))
+		} else {
+			if !isRootZoneQuery {
+				// No match, return NXDOMAIN
+				m.Rcode = dns.RcodeNameError
+			}
 			m.Ns = []dns.RR{gw.soa(state)}
 		}
 
@@ -293,18 +346,23 @@ func (gw *Gateway) AAAA(name string, results []netip.Addr) (records []dns.RR) {
 	return records
 }
 
+// CNAME creates a CNAME record
+func (gw *Gateway) CNAME(name string, target string) dns.RR {
+	return &dns.CNAME{Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: gw.ttlLow}, Target: target}
+}
+
 // SelfAddress returns the address of the local k8s_gateway service
 func (gw *Gateway) SelfAddress(state request.Request) (records []dns.RR) {
 
 	var addrs1, addrs2 []netip.Addr
 	for _, resource := range gw.Resources {
 		results := resource.lookup([]string{gw.apex})
-		if len(results) > 0 {
-			addrs1 = append(addrs1, results...)
+		if len(results.Addrs) > 0 {
+			addrs1 = append(addrs1, results.Addrs...)
 		}
 		results = resource.lookup([]string{gw.secondNS})
-		if len(results) > 0 {
-			addrs2 = append(addrs2, results...)
+		if len(results.Addrs) > 0 {
+			addrs2 = append(addrs2, results.Addrs...)
 		}
 	}
 
@@ -330,4 +388,37 @@ func stripClosingDot(s string) string {
 		return strings.TrimSuffix(s, ".")
 	}
 	return s
+}
+
+// resolveCNAME resolves a CNAME target to its IP addresses
+func (gw *Gateway) resolveCNAME(target string, zone string) []netip.Addr {
+	// If the target doesn't end with a dot, append the zone
+	if !strings.HasSuffix(target, ".") {
+		target = target + "." + zone
+	}
+
+	// Extract the hostname without the zone
+	hostname := stripDomain(target, zone)
+
+	// Compute keys to look up in cache
+	var indexKeys []string
+	strippedTarget := stripClosingDot(target)
+	if len(hostname) != 0 && hostname != strippedTarget {
+		indexKeys = []string{strippedTarget, hostname}
+	} else {
+		indexKeys = []string{strippedTarget}
+	}
+
+	// Look up the target in our resources
+	for _, resource := range gw.Resources {
+		result := resource.lookup(indexKeys)
+		if len(result.Addrs) > 0 {
+			return result.Addrs
+		} else if result.HasCNAME {
+			// If we found another CNAME, resolve it recursively
+			return gw.resolveCNAME(result.CNAMETarget, zone)
+		}
+	}
+
+	return nil
 }
