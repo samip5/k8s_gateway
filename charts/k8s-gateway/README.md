@@ -1,6 +1,6 @@
 # k8s-gateway
-A simple chart to install [k8s_gateway](https://github.com/k8s-gateway/k8s_gateway)
 
+A simple chart to install [k8s_gateway](https://github.com/k8s-gateway/k8s_gateway)
 
 ## Parameters
 
@@ -10,19 +10,22 @@ The following table lists the configurable parameters of the k8s_gateway chart a
 | -------------------------------- | ----------------------------------------------------------------------------------------- | --------------------- |
 | `domain`                         | Delegated domain(s)                                                                       |                       |
 | `customLabels`                   | Labels to apply to all resources                                                          | `{}`                  |
-| `watchedResources`               | Limit what kind of resources to watch, e.g. `watchedResources: ["Ingress"]`               | `[]`                  |
+| `watchedResources`               | Resources to watch, e.g. `watchedResources: ["Ingress"]`                                  | `["Ingress", "Service"]`|
 | `filters.ingressClasses`         | Filter Ingress resources by their IngressClassName property                               | `[]`                  |
 | `filters.gatewayClasses`         | Filter Gateway resources by their GatewayClassName property                               | `[]`                  |
 | `fallthrough.enabled`            | Enable fallthrough support                                                                | `false`               |
 | `fallthrough.zones`              | List of zones to enable fallthrough on                                                    | `[]`                  |
 | `ttl`                            | TTL for non-apex responses (in seconds)                                                   | `300`                 |
 | `dnsChallenge.enabled`           | Optional configuration option for DNS01 challenge                                         | `false`               |
-| `dnsChallenge.domain`            | See: https://cert-manager.io/docs/configuration/acme/dns01/                               | `dns01.clouddns.com`  |
+| `dnsChallenge.domain`            | See: <https://cert-manager.io/docs/configuration/acme/dns01/>                             | `dns01.clouddns.com`  |
 | `extraZonePlugins`               | Optional extra plugins to be added to the zone, e.g. "forward . /etc/resolv.conf"         | `""`                  |
-| `image.registry`                 | Image registry                                                                            | `quay.io`             |
-| `image.repository`               | Image repository                                                                          | `oriedge/k8s_gateway` |
+| `image.registry`                 | Image registry                                                                            | `ghcr.io`             |
+| `image.repository`               | Image repository                                                                          | `k8s-gateway/k8s_gateway` |
 | `image.tag`                      | Image tag                                                                                 | `latest`              |
 | `image.pullPolicy`               | Image pull policy                                                                         | `Always`              |
+| `imagePullSecrets`               | Image pull secrets                                                                        | `[]`                  |
+| `podSecurityContext`             | Set Security Context for Pod                                                              | `{}`                  |
+| `securityContext`                | Set Security Context for the container                                                    | `{}`                  |
 | `nodeSelector`                   | Node labels for pod assignment                                                            | `{}`                  |
 | `tolerations`                    | Use to schedule on node taint to be not schedulable                                       | `[]`                  |
 | `topologySpreadConstraints`      | Use topology spread constraints to control how Pods are spread across your cluster        | `[]`                  |

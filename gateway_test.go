@@ -162,7 +162,7 @@ var tests = []test.Case{
 	},
 	// Real service, wrong query type | Test 7
 	{
-		Qname: "svc3.ns1.example.com.", Qtype: dns.TypeCNAME, Rcode: dns.RcodeNameError,
+		Qname: "svc3.ns1.example.com.", Qtype: dns.TypeCNAME, Rcode: dns.RcodeSuccess,
 		Ns: []dns.RR{
 			test.SOA("example.com.  60  IN  SOA dns1.kube-system.example.com. hostmaster.example.com. 1499347823 7200 1800 86400 5"),
 		},
@@ -220,17 +220,24 @@ var tests = []test.Case{
 	{
 		Qname: "example.com.", Qtype: dns.TypeNS, Rcode: dns.RcodeSuccess,
 		Answer: []dns.RR{
-			test.NS("example.com.   60  IN  NS  dns1.kube-system.example.com."),
+			test.NS("example.com.   60  IN  NS  dns1.kube-system.example.com"),
 		},
 		Extra: []dns.RR{
 			test.A("dns1.kube-system.example.com.   60  IN  A   192.0.1.53"),
 		},
 	},
-	// CNAME query for a non-existent record | Test 18
+	// Lookup that relies on a wildcard | Test 18
 	{
-		Qname: "cname-nonexistent.example.com.", Qtype: dns.TypeCNAME, Rcode: dns.RcodeNameError,
-		Ns: []dns.RR{
-			test.SOA("example.com.  60  IN  SOA dns1.kube-system.example.com. hostmaster.example.com. 1499347823 7200 1800 86400 5"),
+		Qname: "not-explicitly-defined-label.wildcard.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{
+			test.A("not-explicitly-defined-label.wildcard.example.com. 60  IN  A   192.0.0.6"),
+		},
+	},
+	// Lookup with a matching wildcard but a more specific entry | Test 19
+	{
+		Qname: "specific-subdomain.wildcard.example.com.", Qtype: dns.TypeA, Rcode: dns.RcodeSuccess,
+		Answer: []dns.RR{
+			test.A("specific-subdomain.wildcard.example.com. 60  IN  A   192.0.0.7"),
 		},
 	},
 }
@@ -270,11 +277,11 @@ var testServiceIndexes = map[string][]netip.Addr{
 	"dns1.kube-system": {netip.MustParseAddr("192.0.1.53")},
 }
 
-func testServiceLookup(keys []string) (result LookupResult) {
+func testServiceLookup(keys []string) (results []netip.Addr) {
 	for _, key := range keys {
-		result.Addrs = append(result.Addrs, testServiceIndexes[strings.ToLower(key)]...)
+		results = append(results, testServiceIndexes[strings.ToLower(key)]...)
 	}
-	return result
+	return results
 }
 
 var testIngressIndexes = map[string][]netip.Addr{
@@ -285,32 +292,23 @@ var testIngressIndexes = map[string][]netip.Addr{
 	"shadow-vs.example.com": {netip.MustParseAddr("192.0.0.5")},
 }
 
-func testIngressLookup(keys []string) (result LookupResult) {
+func testIngressLookup(keys []string) (results []netip.Addr) {
 	for _, key := range keys {
-		result.Addrs = append(result.Addrs, testIngressIndexes[strings.ToLower(key)]...)
+		results = append(results, testIngressIndexes[strings.ToLower(key)]...)
 	}
-	return result
+	return results
 }
 
 var testRouteIndexes = map[string][]netip.Addr{
 	"domain.gw.example.com": {netip.MustParseAddr("192.0.2.1")},
 	"shadow.example.com":    {netip.MustParseAddr("192.0.2.4")},
-	"target.example.com":    {netip.MustParseAddr("192.0.3.1"), netip.MustParseAddr("fd12:3456:789a:2::")},
 }
 
-func testRouteLookup(keys []string) (result LookupResult) {
+func testRouteLookup(keys []string) (results []netip.Addr) {
 	for _, key := range keys {
-		// Check if this is a CNAME record
-		if target, ok := testCNAMERecords[strings.ToLower(key)]; ok {
-			log.Infof("Found CNAME record for %s: %s", key, target)
-			result.HasCNAME = true
-			result.CNAMETarget = target
-			return result
-		}
-		// Otherwise, look for IP addresses
-		result.Addrs = append(result.Addrs, testRouteIndexes[strings.ToLower(key)]...)
+		results = append(results, testRouteIndexes[strings.ToLower(key)]...)
 	}
-	return result
+	return results
 }
 
 var testDNSEndpointIndexes = map[string][]netip.Addr{
@@ -318,24 +316,11 @@ var testDNSEndpointIndexes = map[string][]netip.Addr{
 	"endpoint.example.com":        {netip.MustParseAddr("192.0.4.4")},
 }
 
-// Map of CNAME records for testing
-var testCNAMERecords = map[string]string{
-	"cname-test.example.com":  "target.example.com.",
-	"nested-test.example.com": "cname-test.example.com.",
-}
-
-func testDNSEndpointLookup(keys []string) (result LookupResult) {
+func testDNSEndpointLookup(keys []string) (results []netip.Addr) {
 	for _, key := range keys {
-		// Check if this is a CNAME record
-		if target, ok := testCNAMERecords[strings.ToLower(key)]; ok {
-			result.HasCNAME = true
-			result.CNAMETarget = target
-			return result
-		}
-		// Otherwise, look for IP addresses
-		result.Addrs = append(result.Addrs, testDNSEndpointIndexes[strings.ToLower(key)]...)
+		results = append(results, testDNSEndpointIndexes[strings.ToLower(key)]...)
 	}
-	return result
+	return results
 }
 
 func setupLookupFuncs(gw *Gateway) {

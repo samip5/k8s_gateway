@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: podSecurityContext
+templates:
+  - deployment.yaml
+tests:
+  - it: default should pass
+    asserts:
+      - documentIndex: 0
+        isKind:
+          of: Deployment
+      - documentIndex: 0
+        equal:
+          path: spec.template.spec.securityContext
+          value: {}
+
+  - it: setting podSecurityContext should template out to deployment
+    set:
+      podSecurityContext:
+        seccompProfile:
+          type: RuntimeDefault
+    asserts:
+      - documentIndex: 0
+        isKind:
+          of: Deployment
+      - documentIndex: 0
+        equal:
+          path: spec.template.spec.securityContext
+          value:
+            seccompProfile:
+              type: RuntimeDefault

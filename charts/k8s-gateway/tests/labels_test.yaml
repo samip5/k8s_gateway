@@ -1,0 +1,19 @@
+---
+suite: Labels
+
+tests:
+  - it: Should apply custom labels
+    set:
+      domain: example.com
+      watchedResources:
+        - Service
+      customLabels:
+        foo: bar
+        env: test
+    asserts:
+      - equal:
+          path: metadata.labels.foo
+          value: bar
+      - equal:
+          path: metadata.labels.env
+          value: test

@@ -1,0 +1,183 @@
+---
+suite: RBAC
+
+tests:
+  - it: Should render RBAC for Ingress and Service
+    set:
+      domain: example.com
+    template: templates/rbac.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: ClusterRole
+        documentIndex: 0
+      - isKind:
+          of: ClusterRoleBinding
+        documentIndex: 1
+      - contains:
+          path: rules[0].apiGroups
+          content: apiextensions.k8s.io
+        documentIndex: 0
+      - contains:
+          path: rules[0].resources
+          content: customresourcedefinitions
+        documentIndex: 0
+      - contains:
+          path: rules[0].verbs
+          content: get
+        documentIndex: 0
+      - contains:
+          path: rules[0].verbs
+          content: list
+        documentIndex: 0
+      - contains:
+          path: rules[0].verbs
+          content: watch
+        documentIndex: 0
+      - contains:
+          path: rules[1].resources
+          content: services
+        documentIndex: 0
+      - contains:
+          path: rules[1].resources
+          content: namespaces
+        documentIndex: 0
+      - contains:
+          path: rules[1].verbs
+          content: list
+        documentIndex: 0
+      - contains:
+          path: rules[1].verbs
+          content: watch
+        documentIndex: 0
+      - contains:
+          path: rules[2].resources
+          content: ingresses
+        documentIndex: 0
+      - contains:
+          path: rules[2].verbs
+          content: list
+        documentIndex: 0
+      - contains:
+          path: rules[2].verbs
+          content: watch
+        documentIndex: 0
+
+  - it: Should render RBAC for DNSEndpoint
+    set:
+      domain: example.com
+      watchedResources:
+        - DNSEndpoint
+    template: templates/rbac.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: ClusterRole
+        documentIndex: 0
+      - isKind:
+          of: ClusterRoleBinding
+        documentIndex: 1
+      - contains:
+          path: rules[0].apiGroups
+          content: apiextensions.k8s.io
+        documentIndex: 0
+      - contains:
+          path: rules[1].apiGroups
+          content: externaldns.k8s.io
+        documentIndex: 0
+      - contains:
+          path: rules[1].resources
+          content: dnsendpoints
+        documentIndex: 0
+      - contains:
+          path: rules[2].resources
+          content: dnsendpoints/status
+        documentIndex: 0
+
+  - it: Should fail if watchedResources is empty
+    set:
+      domain: example.com
+      watchedResources: []
+    template: templates/rbac.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "watchedResources must be defined and non-empty"
+
+  - it: Should render RBAC for Gateway API
+    set:
+      domain: example.com
+      watchedResources:
+        - HTTPRoute
+        - GRPCRoute
+        - TLSRoute
+    template: templates/rbac.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: ClusterRole
+        documentIndex: 0
+      - isKind:
+          of: ClusterRoleBinding
+        documentIndex: 1
+      - contains:
+          path: rules[0].apiGroups
+          content: apiextensions.k8s.io
+        documentIndex: 0
+      - contains:
+          path: rules[0].resources
+          content: customresourcedefinitions
+        documentIndex: 0
+      - contains:
+          path: rules[0].verbs
+          content: get
+        documentIndex: 0
+      - contains:
+          path: rules[0].verbs
+          content: list
+        documentIndex: 0
+      - contains:
+          path: rules[0].verbs
+          content: watch
+        documentIndex: 0
+      - contains:
+          path: rules[1].apiGroups
+          content: gateway.networking.k8s.io
+        documentIndex: 0
+      - contains:
+          path: rules[1].resources
+          content: "*"
+        documentIndex: 0
+  - it: Should render RBAC for DNSEndpoint
+    set:
+      domain: example.com
+      watchedResources:
+        - DNSEndpoint
+    template: templates/rbac.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: ClusterRole
+        documentIndex: 0
+      - isKind:
+          of: ClusterRoleBinding
+        documentIndex: 1
+      - contains:
+          path: rules[0].apiGroups
+          content: apiextensions.k8s.io
+        documentIndex: 0
+      - contains:
+          path: rules[1].apiGroups
+          content: externaldns.k8s.io
+        documentIndex: 0
+      - contains:
+          path: rules[1].resources
+          content: dnsendpoints
+        documentIndex: 0
+      - contains:
+          path: rules[2].resources
+          content: dnsendpoints/status
+        documentIndex: 0

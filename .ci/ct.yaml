@@ -1,5 +1,4 @@
-chart-yaml-schema: .ci/ct/chart_schema.yaml
-lint-conf: .ci/ct/lintconf.yaml
+lint-conf: .ci/lintconf.yaml
 
 remote: origin
 target-branch: master
